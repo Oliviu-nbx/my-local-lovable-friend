@@ -90,40 +90,55 @@ export function executeToolCall(
   onFileOperation: (operation: FileOperation) => void,
   onProjectCreate: (name: string) => string
 ): string {
+  console.log('Executing tool:', toolName, 'with args:', args);
+  
   try {
     switch (toolName) {
       case 'create_file':
+        if (!args.path || args.content === undefined) {
+          return `Error: Missing path or content for create_file`;
+        }
         onFileOperation({
           type: 'create',
           path: args.path,
           content: args.content
         });
-        return `Created file: ${args.path}`;
+        return `✅ Created file: ${args.path}`;
 
       case 'update_file':
+        if (!args.path || args.content === undefined) {
+          return `Error: Missing path or content for update_file`;
+        }
         onFileOperation({
           type: 'update',
           path: args.path,
           content: args.content
         });
-        return `Updated file: ${args.path}`;
+        return `✅ Updated file: ${args.path}`;
 
       case 'delete_file':
+        if (!args.path) {
+          return `Error: Missing path for delete_file`;
+        }
         onFileOperation({
           type: 'delete',
           path: args.path
         });
-        return `Deleted file: ${args.path}`;
+        return `✅ Deleted file: ${args.path}`;
 
       case 'create_project':
+        if (!args.name) {
+          return `Error: Missing name for create_project`;
+        }
         const projectId = onProjectCreate(args.name);
-        return `Created project: ${args.name} (ID: ${projectId})`;
+        return `✅ Created project: ${args.name} (ID: ${projectId})`;
 
       default:
-        return `Unknown tool: ${toolName}`;
+        return `❌ Unknown tool: ${toolName}`;
     }
   } catch (error) {
-    return `Error executing ${toolName}: ${error}`;
+    console.error('Tool execution error:', error);
+    return `❌ Error executing ${toolName}: ${error}`;
   }
 }
 

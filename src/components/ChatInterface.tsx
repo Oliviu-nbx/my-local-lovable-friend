@@ -133,7 +133,14 @@ Available tools: create_file, update_file, delete_file, create_project. Always c
               // Execute each tool call
               for (const toolCall of toolCalls) {
                 try {
-                  const args = JSON.parse(toolCall.function.arguments);
+                  // More robust argument parsing
+                  let args;
+                  if (typeof toolCall.function.arguments === 'string') {
+                    args = JSON.parse(toolCall.function.arguments);
+                  } else {
+                    args = toolCall.function.arguments;
+                  }
+                  
                   const result = executeToolCall(
                     toolCall.function.name,
                     args,
