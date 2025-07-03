@@ -25,34 +25,47 @@ export function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const currentProject = projectManager.getCurrentProject();
+  const currentProjectId = projectManager.currentProject;
 
-  // Load messages from localStorage
-  const [messages, setMessages] = useState<Message[]>(() => {
-    try {
-      const saved = localStorage.getItem('chat-messages');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return parsed.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }));
+  // Project-specific chat storage
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  // Load messages for current project
+  useEffect(() => {
+    if (currentProjectId) {
+      const chatKey = `chat-messages-${currentProjectId}`;
+      try {
+        const saved = localStorage.getItem(chatKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setMessages(parsed.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          })));
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to load chat for project:', currentProjectId, error);
       }
-    } catch (error) {
-      console.error('Failed to load chat:', error);
     }
     
-    return [{
+    // Default welcome message
+    setMessages([{
       id: '1',
       role: 'assistant',
       content: "Hello! I'm your AI development assistant. I can create files and build projects. Tell me what you want to create!",
       timestamp: new Date()
-    }];
-  });
+    }]);
+  }, [currentProjectId]);
 
-  // Save messages to localStorage whenever they change
+  // Save messages whenever they change
   useEffect(() => {
-    localStorage.setItem('chat-messages', JSON.stringify(messages));
-  }, [messages]);
+    if (currentProjectId && messages.length > 0) {
+      const chatKey = `chat-messages-${currentProjectId}`;
+      localStorage.setItem(chatKey, JSON.stringify(messages));
+    }
+  }, [messages, currentProjectId]);
 
   // Initialize AI instance
   const getAIInstance = () => {
@@ -308,7 +321,9 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
       <div className="flex items-center justify-between p-4 border-b border-border bg-card">
         <div>
           <h2 className="text-lg font-semibold text-foreground">AI Chat</h2>
-          <p className="text-sm text-muted-foreground">Conversation with your local LLM</p>
+          <p className="text-sm text-muted-foreground">
+            {currentProject ? `Project: ${currentProject.name}` : 'No project selected'}
+          </p>
         </div>
         <Button
           variant="outline"
