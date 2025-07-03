@@ -99,12 +99,14 @@ export function ChatInterface() {
         
         // Try to parse tool calls from response
         try {
-          const jsonMatch = responseText.match(/\{[\s\S]*"tool_calls"[\s\S]*\}/);
+          // Look for JSON in the response (either wrapped in ```json or standalone)
+          const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/(\{[\s\S]*"tool_calls"[\s\S]*\})/);
           if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
+            const jsonStr = jsonMatch[1] || jsonMatch[0];
+            const parsed = JSON.parse(jsonStr);
             if (parsed.tool_calls) {
               toolCalls = parsed.tool_calls;
-              assistantResponse = parsed.content || "I'm creating the files for you...";
+              assistantResponse = parsed.content || "I've created the files for your project!";
               
               // Execute tool calls
               for (const toolCall of toolCalls) {
