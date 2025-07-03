@@ -79,8 +79,26 @@ export function ChatInterface() {
       const aiConfig = getAIInstance();
       const systemPrompt = localStorage.getItem('system-prompt') || 'You are a helpful AI development assistant with file creation capabilities. When users ask you to create websites or applications, use the available tools to create the actual files. Always create complete, working code.';
       
-      // Add tool information to system prompt
-      const enhancedSystemPrompt = `${systemPrompt}\n\n${formatToolsForAI()}`;
+      // Add tool information to system prompt for Gemini
+      const enhancedSystemPrompt = `${systemPrompt}
+
+When users ask you to create websites, apps, or files, you MUST respond with this exact JSON format:
+
+{
+  "tool_calls": [
+    {
+      "id": "call_1", 
+      "type": "function",
+      "function": {
+        "name": "create_file",
+        "arguments": "{\"path\": \"index.html\", \"content\": \"<!DOCTYPE html>...\"}"
+      }
+    }
+  ],
+  "content": "I've created your website!"
+}
+
+Available tools: create_file, update_file, delete_file, create_project. Always create complete working HTML files with inline CSS.`;
       
       // Create context from recent messages
       const context = messages.slice(-10).map(msg => 
@@ -97,43 +115,52 @@ export function ChatInterface() {
         const response = await result.response;
         const responseText = response.text();
         
-        // Try to parse tool calls from response
-        try {
-          // Look for JSON in the response (either wrapped in ```json or standalone)
-          const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/(\{[\s\S]*"tool_calls"[\s\S]*\})/);
-          if (jsonMatch) {
-            const jsonStr = jsonMatch[1] || jsonMatch[0];
+        // Check if response contains tool calls JSON
+        if (responseText.includes('"tool_calls"')) {
+          try {
+            // Extract JSON from response (handle both ```json and direct JSON)
+            let jsonStr = responseText;
+            const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
+            if (jsonMatch) {
+              jsonStr = jsonMatch[1];
+            }
+            
             const parsed = JSON.parse(jsonStr);
-            if (parsed.tool_calls) {
+            if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
               toolCalls = parsed.tool_calls;
-              assistantResponse = parsed.content || "I've created the files for your project!";
+              assistantResponse = parsed.content || "I've created your files!";
               
-              // Execute tool calls
+              // Execute each tool call
               for (const toolCall of toolCalls) {
-                const args = JSON.parse(toolCall.function.arguments);
-                const result = executeToolCall(
-                  toolCall.function.name,
-                  args,
-                  (operation) => {
-                    if (projectManager.currentProject) {
-                      projectManager.executeFileOperation(projectManager.currentProject, operation);
-                    } else {
-                      // Create a new project if none exists
-                      const projectId = projectManager.createProject('New Project');
-                      projectManager.executeFileOperation(projectId, operation);
-                    }
-                  },
-                  (name) => projectManager.createProject(name)
-                );
-                toolResults.push(result);
+                try {
+                  const args = JSON.parse(toolCall.function.arguments);
+                  const result = executeToolCall(
+                    toolCall.function.name,
+                    args,
+                    (operation) => {
+                      if (projectManager.currentProject) {
+                        projectManager.executeFileOperation(projectManager.currentProject, operation);
+                      } else {
+                        const projectId = projectManager.createProject('New Project');
+                        projectManager.executeFileOperation(projectId, operation);
+                      }
+                    },
+                    (name) => projectManager.createProject(name)
+                  );
+                  toolResults.push(result);
+                } catch (error) {
+                  console.error('Tool execution error:', error);
+                  toolResults.push(`Error: ${error}`);
+                }
               }
             } else {
               assistantResponse = responseText;
             }
-          } else {
+          } catch (error) {
+            console.error('JSON parsing error:', error);
             assistantResponse = responseText;
           }
-        } catch {
+        } else {
           assistantResponse = responseText;
         }
       } else {
