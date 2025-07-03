@@ -1,25 +1,31 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, User, Bot, Copy, RotateCcw } from "lucide-react";
+import { Send, User, Bot, Copy, RotateCcw, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { useProjectManager } from "@/hooks/useProjectManager";
+import { availableTools, executeToolCall, formatToolsForAI } from "@/services/aiTools";
+import { ToolCall } from "@/types/tools";
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  toolCalls?: ToolCall[];
+  toolResults?: string[];
 }
 
 export function ChatInterface() {
+  const projectManager = useProjectManager();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: "Hello! I'm your AI development assistant powered by Gemini. I can help you with code, answer questions, and assist with your development tasks. How can I help you today?",
+      content: "Hello! I'm your AI development assistant with file creation capabilities. I can build complete websites and applications for you. Just tell me what you want to create and I'll build it with working files and show you the preview!\n\nTry asking me to create something like:\n• \"Make a simple website with hero section, 3 services, and contact form\"\n• \"Create a todo app with React\"\n• \"Build a landing page for a restaurant\"",
       timestamp: new Date()
     }
   ]);
@@ -71,7 +77,10 @@ export function ChatInterface() {
 
     try {
       const aiConfig = getAIInstance();
-      const systemPrompt = localStorage.getItem('system-prompt') || 'You are a helpful AI development assistant. Provide clear, concise, and practical answers to development questions.';
+      const systemPrompt = localStorage.getItem('system-prompt') || 'You are a helpful AI development assistant with file creation capabilities. When users ask you to create websites or applications, use the available tools to create the actual files. Always create complete, working code.';
+      
+      // Add tool information to system prompt
+      const enhancedSystemPrompt = `${systemPrompt}\n\n${formatToolsForAI()}`;
       
       // Create context from recent messages
       const context = messages.slice(-10).map(msg => 
@@ -79,12 +88,52 @@ export function ChatInterface() {
       ).join('\n');
       
       let assistantResponse = '';
+      let toolCalls: ToolCall[] = [];
+      let toolResults: string[] = [];
 
       if (aiConfig.type === 'gemini') {
-        const prompt = `${systemPrompt}\n\nConversation history:\n${context}\n\nUser: ${userMessage.content}\n\nAssistant:`;
+        const prompt = `${enhancedSystemPrompt}\n\nConversation history:\n${context}\n\nUser: ${userMessage.content}\n\nAssistant:`;
         const result = await aiConfig.instance.generateContent(prompt);
         const response = await result.response;
-        assistantResponse = response.text();
+        const responseText = response.text();
+        
+        // Try to parse tool calls from response
+        try {
+          const jsonMatch = responseText.match(/\{[\s\S]*"tool_calls"[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.tool_calls) {
+              toolCalls = parsed.tool_calls;
+              assistantResponse = parsed.content || "I'm creating the files for you...";
+              
+              // Execute tool calls
+              for (const toolCall of toolCalls) {
+                const args = JSON.parse(toolCall.function.arguments);
+                const result = executeToolCall(
+                  toolCall.function.name,
+                  args,
+                  (operation) => {
+                    if (projectManager.currentProject) {
+                      projectManager.executeFileOperation(projectManager.currentProject, operation);
+                    } else {
+                      // Create a new project if none exists
+                      const projectId = projectManager.createProject('New Project');
+                      projectManager.executeFileOperation(projectId, operation);
+                    }
+                  },
+                  (name) => projectManager.createProject(name)
+                );
+                toolResults.push(result);
+              }
+            } else {
+              assistantResponse = responseText;
+            }
+          } else {
+            assistantResponse = responseText;
+          }
+        } catch {
+          assistantResponse = responseText;
+        }
       } else {
         // OpenAI-compatible API (LM Studio)
         const response = await fetch(`${aiConfig.endpoint}/v1/chat/completions`, {
@@ -96,7 +145,7 @@ export function ChatInterface() {
           body: JSON.stringify({
             model: localStorage.getItem('local-model-name') || 'local-model',
             messages: [
-              { role: 'system', content: systemPrompt },
+              { role: 'system', content: enhancedSystemPrompt },
               ...messages.slice(-10).map(msg => ({
                 role: msg.role === 'assistant' ? 'assistant' : 'user',
                 content: msg.content
@@ -104,7 +153,9 @@ export function ChatInterface() {
               { role: 'user', content: userMessage.content }
             ],
             temperature: parseFloat(localStorage.getItem('temperature') || '0.7'),
-            max_tokens: parseInt(localStorage.getItem('max-tokens') || '2048')
+            max_tokens: parseInt(localStorage.getItem('max-tokens') || '2048'),
+            tools: availableTools,
+            tool_choice: 'auto'
           })
         });
 
@@ -113,14 +164,42 @@ export function ChatInterface() {
         }
 
         const data = await response.json();
-        assistantResponse = data.choices[0]?.message?.content || 'No response received';
+        const choice = data.choices[0];
+        
+        assistantResponse = choice.message?.content || 'I\'m working on your request...';
+        
+        if (choice.message?.tool_calls) {
+          toolCalls = choice.message.tool_calls;
+          
+          // Execute tool calls
+          for (const toolCall of toolCalls) {
+            const args = JSON.parse(toolCall.function.arguments);
+            const result = executeToolCall(
+              toolCall.function.name,
+              args,
+              (operation) => {
+                if (projectManager.currentProject) {
+                  projectManager.executeFileOperation(projectManager.currentProject, operation);
+                } else {
+                  // Create a new project if none exists
+                  const projectId = projectManager.createProject('New Project');
+                  projectManager.executeFileOperation(projectId, operation);
+                }
+              },
+              (name) => projectManager.createProject(name)
+            );
+            toolResults.push(result);
+          }
+        }
       }
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: assistantResponse,
-        timestamp: new Date()
+        timestamp: new Date(),
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        toolResults: toolResults.length > 0 ? toolResults : undefined
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -203,6 +282,23 @@ export function ChatInterface() {
                 <div className="prose prose-invert max-w-none">
                   <p className="mb-0 whitespace-pre-wrap">{message.content}</p>
                 </div>
+
+                {/* Tool calls indicator */}
+                {message.toolCalls && message.toolCalls.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border/20">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Wrench className="w-3 h-3" />
+                      <span>Used {message.toolCalls.length} tool(s)</span>
+                    </div>
+                    {message.toolResults && (
+                      <div className="mt-2 text-xs bg-muted/20 rounded p-2">
+                        {message.toolResults.map((result, idx) => (
+                          <div key={idx} className="text-green-600">{result}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/20">
                   <span className="text-xs text-muted-foreground">

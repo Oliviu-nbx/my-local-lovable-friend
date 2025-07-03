@@ -9,6 +9,7 @@ import Editor from "./pages/Editor";
 import Terminal from "./pages/Terminal";
 import Model from "./pages/Model";
 import Settings from "./pages/Settings";
+import Development from "./pages/Development";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/editor" element={<Editor />} />
           <Route path="/terminal" element={<Terminal />} />
           <Route path="/model" element={<Model />} />
+          <Route path="/development" element={<Development />} />
           <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

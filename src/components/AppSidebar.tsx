@@ -7,7 +7,8 @@ import {
   Terminal,
   FileText,
   Cpu,
-  Zap
+  Zap,
+  Hammer
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -26,6 +27,7 @@ import {
 
 const navigationItems = [
   { title: "Chat", url: "/", icon: MessageSquare },
+  { title: "Development", url: "/development", icon: Hammer },
   { title: "Files", url: "/files", icon: FolderOpen },
   { title: "Editor", url: "/editor", icon: Code2 },
   { title: "Terminal", url: "/terminal", icon: Terminal },
