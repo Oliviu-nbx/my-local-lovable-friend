@@ -26,6 +26,8 @@ export function ChatInterface() {
   const projectManager = useProjectManager();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [currentStreamingMessageId, setCurrentStreamingMessageId] = useState<string | null>(null);
   const [showThinking, setShowThinking] = useState(false);
   const [thinkingSteps, setThinkingSteps] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
@@ -138,6 +140,19 @@ export function ChatInterface() {
     setIsLoading(true);
     setShowThinking(false);
     
+    // Create placeholder message for streaming
+    const assistantMessageId = (Date.now() + 1).toString();
+    const placeholderMessage: Message = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, placeholderMessage]);
+    setCurrentStreamingMessageId(assistantMessageId);
+    setIsStreaming(true);
+    
     // Start thinking simulation
     const thinkingPromise = simulateThinking();
 
@@ -189,16 +204,31 @@ Project Configuration:
 
       if (aiConfig.type === 'gemini') {
         const prompt = `${enhancedSystemPrompt}\n\n${configContext}\n\nConversation history:\n${context}\n\nUser: ${userMessage.content}\n\nAssistant:`;
-        const result = await aiConfig.instance.generateContent(prompt);
-        const response = await result.response;
-        const responseText = response.text();
         
-        // Check if response contains tool calls JSON
-        if (responseText.includes('"tool_calls"')) {
+        // Use streaming for Gemini
+        const result = await aiConfig.instance.generateContentStream(prompt);
+        
+        for await (const chunk of result.stream) {
+          const chunkText = chunk.text();
+          assistantResponse += chunkText;
+          
+          // Update the streaming message in real-time
+          setMessages(prev => prev.map(msg => 
+            msg.id === assistantMessageId 
+              ? { ...msg, content: assistantResponse }
+              : msg
+          ));
+          
+          // Small delay to make streaming visible
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        
+        // Check if response contains tool calls JSON after streaming is complete
+        if (assistantResponse.includes('"tool_calls"')) {
           try {
             // Extract JSON from response (handle both ```json and direct JSON)
-            let jsonStr = responseText;
-            const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
+            let jsonStr = assistantResponse;
+            const jsonMatch = assistantResponse.match(/```json\s*([\s\S]*?)\s*```/);
             if (jsonMatch) {
               jsonStr = jsonMatch[1];
             }
@@ -207,6 +237,13 @@ Project Configuration:
             if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
               toolCalls = parsed.tool_calls;
               assistantResponse = parsed.content || "I've created your files!";
+              
+              // Update message with clean content
+              setMessages(prev => prev.map(msg => 
+                msg.id === assistantMessageId 
+                  ? { ...msg, content: assistantResponse }
+                  : msg
+              ));
               
               // Execute each tool call
               for (const toolCall of toolCalls) {
@@ -248,37 +285,50 @@ Project Configuration:
                   toolResults.push(`❌ Error: ${error}`);
                 }
               }
-            } else {
-              assistantResponse = responseText;
             }
           } catch (error) {
             console.error('JSON parsing error:', error);
-            assistantResponse = responseText;
+            // Keep the streamed response as-is
           }
-        } else {
-          assistantResponse = responseText;
         }
       } else {
-        // For local LLMs, try to parse tool calls from response text
-        const localResponse = await handleLocalLLMResponse(aiConfig, enhancedSystemPrompt, context, configContext, userMessage.content);
+        // For local LLMs, try to implement streaming
+        const localResponse = await handleLocalLLMStreamingResponse(
+          aiConfig, 
+          enhancedSystemPrompt, 
+          context, 
+          configContext, 
+          userMessage.content,
+          assistantMessageId
+        );
         assistantResponse = localResponse.content;
         toolCalls = localResponse.toolCalls;
         toolResults = localResponse.toolResults;
       }
       
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: assistantResponse,
-        timestamp: new Date(),
-        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-        toolResults: toolResults.length > 0 ? toolResults : undefined
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
+      // Update final message with tool calls if any
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { 
+              ...msg, 
+              content: assistantResponse,
+              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+              toolResults: toolResults.length > 0 ? toolResults : undefined
+            }
+          : msg
+      ));
+      
     } catch (error) {
       console.error('AI API Error:', error);
       const provider = localStorage.getItem('ai-provider') || 'gemini';
+      
+      // Update the placeholder message with error
+      setMessages(prev => prev.map(msg => 
+        msg.id === assistantMessageId 
+          ? { ...msg, content: `Error: Failed to get response from ${provider === 'gemini' ? 'Gemini' : 'Local AI'}. Please check your configuration.` }
+          : msg
+      ));
+      
       toast({
         title: "Error",
         description: `Failed to get response from ${provider === 'gemini' ? 'Gemini' : 'Local AI'}. Check your configuration in Settings.`,
@@ -286,6 +336,151 @@ Project Configuration:
       });
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
+      setCurrentStreamingMessageId(null);
+    }
+  };
+
+  // New function to handle local LLM streaming
+  const handleLocalLLMStreamingResponse = async (
+    aiConfig: any, 
+    systemPrompt: string, 
+    context: string, 
+    configContext: string, 
+    userContent: string,
+    messageId: string
+  ) => {
+    try {
+      const response = await fetch(`${aiConfig.endpoint}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(aiConfig.apiKey && { 'Authorization': `Bearer ${aiConfig.apiKey}` })
+        },
+        body: JSON.stringify({
+          model: localStorage.getItem('local-model-name') || 'local-model',
+          messages: [
+            { role: 'system', content: systemPrompt + configContext },
+            ...messages.slice(-10).map(msg => ({
+              role: msg.role === 'assistant' ? 'assistant' : 'user',
+              content: msg.content
+            })),
+            { role: 'user', content: userContent }
+          ],
+          temperature: parseFloat(localStorage.getItem('temperature') || '0.7'),
+          max_tokens: parseInt(localStorage.getItem('max-tokens') || '2048'),
+          stream: true // Enable streaming
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      let assistantResponse = '';
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  assistantResponse += content;
+                  
+                  // Update the streaming message
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === messageId 
+                      ? { ...msg, content: assistantResponse }
+                      : msg
+                  ));
+                  
+                  // Small delay for visual streaming effect
+                  await new Promise(resolve => setTimeout(resolve, 20));
+                }
+              } catch (e) {
+                // Ignore parsing errors for individual chunks
+              }
+            }
+          }
+        }
+      }
+
+      // Try to parse tool calls from the response
+      let toolCalls: ToolCall[] = [];
+      let toolResults: string[] = [];
+      let content = assistantResponse;
+
+      // Check if response contains JSON tool calls
+      if (assistantResponse.includes('"tool_calls"') || assistantResponse.includes('create_file')) {
+        try {
+          let jsonStr = assistantResponse;
+          const jsonMatch = assistantResponse.match(/```json\s*([\s\S]*?)\s*```/);
+          if (jsonMatch) {
+            jsonStr = jsonMatch[1];
+          }
+          
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
+            toolCalls = parsed.tool_calls;
+            content = parsed.content || "I've created your files!";
+            
+            // Execute tool calls
+            for (const toolCall of toolCalls) {
+              try {
+                let args;
+                if (typeof toolCall.function.arguments === 'string') {
+                  args = JSON.parse(toolCall.function.arguments);
+                } else {
+                  args = toolCall.function.arguments;
+                }
+                
+                if (toolCall.function.name === 'create_file') {
+                  let projectId = projectManager.currentProject;
+                  if (!projectId) {
+                    projectId = projectManager.createProject(projectConfig?.websiteName || 'AI Generated Project');
+                  }
+                  
+                  if (projectId && args.path && args.content !== undefined) {
+                    projectManager.executeFileOperation(projectId, {
+                      type: 'create',
+                      path: args.path,
+                      content: args.content
+                    });
+                    toolResults.push(`✅ Created file: ${args.path}`);
+                  }
+                }
+              } catch (error) {
+                console.error('Tool execution error:', error);
+                toolResults.push(`❌ Error: ${error}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('JSON parsing error:', error);
+        }
+      }
+
+      return { content, toolCalls, toolResults };
+    } catch (error) {
+      console.error('Local LLM streaming error:', error);
+      return { 
+        content: 'Error communicating with local AI. Please check your configuration.',
+        toolCalls: [],
+        toolResults: []
+      };
     }
   };
 
@@ -514,9 +709,14 @@ Project Configuration:
                 message.role === 'user'
                   ? 'bg-primary text-primary-foreground shadow-glow'
                   : 'bg-card border-code-border'
-              }`}>
+              } ${isStreaming && message.id === currentStreamingMessageId ? 'border-primary/50 shadow-primary/10' : ''}`}>
                 <div className="prose prose-invert max-w-none">
-                  <p className="mb-0 whitespace-pre-wrap">{message.content}</p>
+                  <p className="mb-0 whitespace-pre-wrap">
+                    {message.content}
+                    {isStreaming && message.id === currentStreamingMessageId && (
+                      <span className="inline-block w-2 h-5 bg-primary ml-1 animate-pulse">|</span>
+                    )}
+                  </p>
                 </div>
 
                 {/* Tool calls indicator */}
@@ -625,14 +825,23 @@ Project Configuration:
             />
             <Button
               onClick={sendMessage}
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || isStreaming}
               className="self-end bg-gradient-primary hover:shadow-glow transition-spring"
             >
-              <Send className="w-4 h-4" />
+              {isStreaming ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
+                  <div className="w-2 h-2 rounded-full bg-white animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-white animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             Press Enter to send, Shift+Enter for new line
+            {isStreaming && <span className="text-primary"> • Streaming response...</span>}
           </p>
         </div>
       </div>
