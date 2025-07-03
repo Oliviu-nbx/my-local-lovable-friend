@@ -13,11 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 export function Settings() {
   const [settings, setSettings] = useState({
     llmEndpoint: 'http://localhost:11434',
-    modelName: 'llama2',
-    apiKey: '',
+    modelName: 'gemini-pro',
+    apiKey: localStorage.getItem('gemini-api-key') || 'AIzaSyBcRopXDUOEYmODdhYrGhW7g3uXOZYZt3M',
     temperature: '0.7',
     maxTokens: '2048',
-    systemPrompt: 'You are a helpful AI development assistant.',
+    systemPrompt: localStorage.getItem('system-prompt') || 'You are a helpful AI development assistant. Provide clear, concise, and practical answers to development questions.',
     autoSave: true,
     darkMode: true,
     notifications: true,
@@ -26,7 +26,10 @@ export function Settings() {
   const { toast } = useToast();
 
   const handleSave = () => {
-    // In a real app, this would save to localStorage or send to a backend
+    // Save to localStorage
+    localStorage.setItem('gemini-api-key', settings.apiKey);
+    localStorage.setItem('system-prompt', settings.systemPrompt);
+    
     toast({
       title: "Settings saved",
       description: "Your configuration has been updated successfully."
@@ -34,18 +37,41 @@ export function Settings() {
   };
 
   const testConnection = async () => {
+    if (!settings.apiKey.trim()) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter your Gemini API key first",
+        variant: "destructive"
+      });
+      return;
+    }
+
     toast({
       title: "Testing connection...",
-      description: "Attempting to connect to your local LLM"
+      description: "Attempting to connect to Gemini API"
     });
 
-    // Simulate connection test
-    setTimeout(() => {
+    try {
+      const { GoogleGenerativeAI } = await import("@google/generative-ai");
+      const genAI = new GoogleGenerativeAI(settings.apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      
+      const result = await model.generateContent("Hello, this is a test message.");
+      const response = await result.response;
+      
+      if (response.text()) {
+        toast({
+          title: "Connection successful",
+          description: "Successfully connected to Gemini API"
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Connection successful",
-        description: "Successfully connected to your local LLM"
+        title: "Connection failed",
+        description: "Failed to connect to Gemini API. Check your API key.",
+        variant: "destructive"
       });
-    }, 2000);
+    }
   };
 
   return (
@@ -61,48 +87,38 @@ export function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Cpu className="w-5 h-5" />
-              LLM Configuration
+              Gemini AI Configuration
             </CardTitle>
             <CardDescription>
-              Configure your local language model connection
+              Configure your Gemini AI settings and API key
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="endpoint">API Endpoint</Label>
-                <Input
-                  id="endpoint"
-                  value={settings.llmEndpoint}
-                  onChange={(e) => setSettings({...settings, llmEndpoint: e.target.value})}
-                  placeholder="http://localhost:11434"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="model">Model Name</Label>
-                <Select value={settings.modelName} onValueChange={(value) => setSettings({...settings, modelName: value})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="llama2">Llama 2</SelectItem>
-                    <SelectItem value="codellama">Code Llama</SelectItem>
-                    <SelectItem value="mistral">Mistral</SelectItem>
-                    <SelectItem value="custom">Custom Model</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div className="space-y-2">
-              <Label htmlFor="apikey">API Key (if required)</Label>
+              <Label htmlFor="apikey">Gemini API Key</Label>
               <Input
                 id="apikey"
                 type="password"
                 value={settings.apiKey}
                 onChange={(e) => setSettings({...settings, apiKey: e.target.value})}
-                placeholder="Enter API key if your LLM requires authentication"
+                placeholder="Enter your Gemini API key"
               />
+              <p className="text-xs text-muted-foreground">
+                Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="model">Model</Label>
+              <Select value={settings.modelName} onValueChange={(value) => setSettings({...settings, modelName: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
+                  <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

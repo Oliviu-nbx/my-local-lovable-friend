@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface Message {
   id: string;
@@ -18,7 +19,7 @@ export function ChatInterface() {
     {
       id: '1',
       role: 'assistant',
-      content: "Hello! I'm your local AI development assistant. I can help you with code, answer questions, and assist with your development tasks. How can I help you today?",
+      content: "Hello! I'm your AI development assistant powered by Gemini. I can help you with code, answer questions, and assist with your development tasks. How can I help you today?",
       timestamp: new Date()
     }
   ]);
@@ -26,6 +27,13 @@ export function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Initialize Gemini AI
+  const getGeminiInstance = () => {
+    const apiKey = localStorage.getItem('gemini-api-key') || 'AIzaSyBcRopXDUOEYmODdhYrGhW7g3uXOZYZt3M';
+    const genAI = new GoogleGenerativeAI(apiKey);
+    return genAI.getGenerativeModel({ model: "gemini-pro" });
+  };
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -55,22 +63,33 @@ export function ChatInterface() {
     setIsLoading(true);
 
     try {
-      // Simulate API call to local LLM
-      // Replace this with actual LLM integration
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const model = getGeminiInstance();
+      const systemPrompt = localStorage.getItem('system-prompt') || 'You are a helpful AI development assistant. Provide clear, concise, and practical answers to development questions.';
+      
+      // Create context from recent messages
+      const context = messages.slice(-10).map(msg => 
+        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ).join('\n');
+      
+      const prompt = `${systemPrompt}\n\nConversation history:\n${context}\n\nUser: ${userMessage.content}\n\nAssistant:`;
+      
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I received your message: "${userMessage.content}". This is a simulated response. To connect to your local LLM, configure the API endpoint in Settings.`,
+        content: text,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
+      console.error('Gemini API Error:', error);
       toast({
         title: "Error",
-        description: "Failed to send message. Check your LLM connection.",
+        description: "Failed to get response from Gemini. Check your API key in Settings.",
         variant: "destructive"
       });
     } finally {
