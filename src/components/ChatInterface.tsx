@@ -82,23 +82,26 @@ export function ChatInterface() {
       // Add tool information to system prompt for Gemini
       const enhancedSystemPrompt = `${systemPrompt}
 
-When users ask you to create websites, apps, or files, you MUST respond with this exact JSON format:
+When users ask you to create websites or files, respond with JSON using this EXACT format:
 
 {
   "tool_calls": [
     {
-      "id": "call_1", 
-      "type": "function",
+      "id": "call_1",
+      "type": "function", 
       "function": {
         "name": "create_file",
-        "arguments": "{\"path\": \"index.html\", \"content\": \"<!DOCTYPE html>...\"}"
+        "arguments": {
+          "path": "index.html",
+          "content": "simple HTML content here without quotes or escapes"
+        }
       }
     }
   ],
   "content": "I've created your website!"
 }
 
-Available tools: create_file, update_file, delete_file, create_project. Always create complete working HTML files with inline CSS.`;
+IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simple without complex escaping.`;
       
       // Create context from recent messages
       const context = messages.slice(-10).map(msg => 
@@ -133,14 +136,8 @@ Available tools: create_file, update_file, delete_file, create_project. Always c
               // Execute each tool call
               for (const toolCall of toolCalls) {
                 try {
-                  // Safer argument parsing for escaped content
-                  let args;
-                  if (typeof toolCall.function.arguments === 'string') {
-                    // Use eval in a safe context for complex escaped JSON
-                    args = Function('"use strict"; return (' + toolCall.function.arguments + ')')();
-                  } else {
-                    args = toolCall.function.arguments;
-                  }
+                  // Arguments should already be an object now
+                  const args = toolCall.function.arguments;
                   
                   const result = executeToolCall(
                     toolCall.function.name,
