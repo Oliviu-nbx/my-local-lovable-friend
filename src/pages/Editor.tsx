@@ -1,0 +1,132 @@
+import { useState } from "react";
+import { Play, Save, FileText, Code, Eye } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Layout } from "@/components/Layout";
+import { useToast } from "@/hooks/use-toast";
+
+export function Editor() {
+  const [activeTab, setActiveTab] = useState("editor");
+  const [code, setCode] = useState(`// Welcome to AI Dev Editor
+// This is a simple code editor with AI assistance
+
+function greetUser(name: string): string {
+  return \`Hello, \${name}! Welcome to your AI development assistant.\`;
+}
+
+// Try asking the AI to help you write code
+const message = greetUser("Developer");
+console.log(message);
+
+// You can use the chat to:
+// - Get code suggestions
+// - Debug issues
+// - Learn new concepts
+// - Refactor existing code
+`);
+
+  const { toast } = useToast();
+
+  const handleSave = () => {
+    toast({
+      title: "File saved",
+      description: "Your code has been saved successfully"
+    });
+  };
+
+  const handleRun = () => {
+    toast({
+      title: "Code executed",
+      description: "Check the console for output"
+    });
+    
+    // In a real implementation, this would execute the code
+    console.log("Executing code:", code);
+  };
+
+  return (
+    <Layout>
+      <div className="h-full flex flex-col">
+        {/* Editor Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+          <div>
+            <h2 className="text-lg font-semibold">Code Editor</h2>
+            <p className="text-sm text-muted-foreground">Write and edit your code with AI assistance</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleSave} className="gap-2">
+              <Save className="w-4 h-4" />
+              Save
+            </Button>
+            <Button size="sm" onClick={handleRun} className="gap-2 bg-gradient-primary hover:shadow-glow">
+              <Play className="w-4 h-4" />
+              Run
+            </Button>
+          </div>
+        </div>
+
+        {/* Editor Content */}
+        <div className="flex-1">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-2 bg-card border-b border-border rounded-none">
+              <TabsTrigger value="editor" className="gap-2">
+                <Code className="w-4 h-4" />
+                Editor
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="gap-2">
+                <Eye className="w-4 h-4" />
+                Preview
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="editor" className="flex-1 m-0">
+              <div className="h-full p-6 bg-editor-bg">
+                <Card className="h-full bg-code-bg border-code-border">
+                  <Textarea
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    className="h-full resize-none border-0 bg-transparent font-mono text-sm"
+                    placeholder="Start writing your code here..."
+                  />
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="preview" className="flex-1 m-0">
+              <div className="h-full p-6 bg-background">
+                <Card className="h-full p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Code Preview</h3>
+                  </div>
+                  <pre className="text-sm bg-code-bg p-4 rounded-lg border border-code-border overflow-auto">
+                    <code className="text-foreground">{code}</code>
+                  </pre>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Status Bar */}
+        <div className="border-t border-border bg-card px-4 py-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-4">
+              <span>TypeScript</span>
+              <span>Line 1, Column 1</span>
+              <span>{code.split('\n').length} lines</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-success"></div>
+              <span>Ready</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}
+
+export default Editor;
