@@ -12,11 +12,13 @@ import { useToast } from "@/hooks/use-toast";
 
 export function Settings() {
   const [settings, setSettings] = useState({
-    llmEndpoint: 'http://localhost:11434',
-    modelName: 'gemini-pro',
-    apiKey: localStorage.getItem('gemini-api-key') || 'AIzaSyBcRopXDUOEYmODdhYrGhW7g3uXOZYZt3M',
-    temperature: '0.7',
-    maxTokens: '2048',
+    aiProvider: localStorage.getItem('ai-provider') || 'gemini',
+    geminiApiKey: localStorage.getItem('gemini-api-key') || 'AIzaSyBcRopXDUOEYmODdhYrGhW7g3uXOZYZt3M',
+    lmStudioEndpoint: localStorage.getItem('lm-studio-endpoint') || 'http://localhost:1234',
+    localModelName: localStorage.getItem('local-model-name') || 'local-model',
+    openaiApiKey: localStorage.getItem('openai-api-key') || '',
+    temperature: localStorage.getItem('temperature') || '0.7',
+    maxTokens: localStorage.getItem('max-tokens') || '2048',
     systemPrompt: localStorage.getItem('system-prompt') || 'You are a helpful AI development assistant. Provide clear, concise, and practical answers to development questions.',
     autoSave: true,
     darkMode: true,
@@ -27,7 +29,13 @@ export function Settings() {
 
   const handleSave = () => {
     // Save to localStorage
-    localStorage.setItem('gemini-api-key', settings.apiKey);
+    localStorage.setItem('ai-provider', settings.aiProvider);
+    localStorage.setItem('gemini-api-key', settings.geminiApiKey);
+    localStorage.setItem('lm-studio-endpoint', settings.lmStudioEndpoint);
+    localStorage.setItem('local-model-name', settings.localModelName);
+    localStorage.setItem('openai-api-key', settings.openaiApiKey);
+    localStorage.setItem('temperature', settings.temperature);
+    localStorage.setItem('max-tokens', settings.maxTokens);
     localStorage.setItem('system-prompt', settings.systemPrompt);
     
     toast({
@@ -37,40 +45,72 @@ export function Settings() {
   };
 
   const testConnection = async () => {
-    if (!settings.apiKey.trim()) {
-      toast({
-        title: "API Key Required",
-        description: "Please enter your Gemini API key first",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    toast({
-      title: "Testing connection...",
-      description: "Attempting to connect to Gemini API"
-    });
-
-    try {
-      const { GoogleGenerativeAI } = await import("@google/generative-ai");
-      const genAI = new GoogleGenerativeAI(settings.apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      
-      const result = await model.generateContent("Hello, this is a test message.");
-      const response = await result.response;
-      
-      if (response.text()) {
+    if (settings.aiProvider === 'gemini') {
+      if (!settings.geminiApiKey.trim()) {
         toast({
-          title: "Connection successful",
-          description: "Successfully connected to Gemini API"
+          title: "API Key Required",
+          description: "Please enter your Gemini API key first",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Testing connection...",
+        description: "Attempting to connect to Gemini API"
+      });
+
+      try {
+        const { GoogleGenerativeAI } = await import("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(settings.geminiApiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const result = await model.generateContent("Hello, this is a test message.");
+        const response = await result.response;
+        
+        if (response.text()) {
+          toast({
+            title: "Connection successful",
+            description: "Successfully connected to Gemini API"
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Connection failed",
+          description: "Failed to connect to Gemini API. Check your API key.",
+          variant: "destructive"
         });
       }
-    } catch (error) {
+    } else {
+      // Test LM Studio connection
       toast({
-        title: "Connection failed",
-        description: "Failed to connect to Gemini API. Check your API key.",
-        variant: "destructive"
+        title: "Testing connection...",
+        description: "Attempting to connect to LM Studio"
       });
+
+      try {
+        const response = await fetch(`${settings.lmStudioEndpoint}/v1/models`, {
+          headers: {
+            ...(settings.openaiApiKey && { 'Authorization': `Bearer ${settings.openaiApiKey}` })
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          toast({
+            title: "Connection successful",
+            description: `Connected to LM Studio. Found ${data.data?.length || 0} models.`
+          });
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        toast({
+          title: "Connection failed",
+          description: "Failed to connect to LM Studio. Check your endpoint and ensure LM Studio is running.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -95,31 +135,77 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="apikey">Gemini API Key</Label>
-              <Input
-                id="apikey"
-                type="password"
-                value={settings.apiKey}
-                onChange={(e) => setSettings({...settings, apiKey: e.target.value})}
-                placeholder="Enter your Gemini API key"
-              />
-              <p className="text-xs text-muted-foreground">
-                Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="model">Model</Label>
-              <Select value={settings.modelName} onValueChange={(value) => setSettings({...settings, modelName: value})}>
+              <Label htmlFor="provider">AI Provider</Label>
+              <Select value={settings.aiProvider} onValueChange={(value) => setSettings({...settings, aiProvider: value})}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gemini-pro">Gemini Pro</SelectItem>
-                  <SelectItem value="gemini-pro-vision">Gemini Pro Vision</SelectItem>
+                  <SelectItem value="gemini">Google Gemini (Cloud)</SelectItem>
+                  <SelectItem value="lmstudio">LM Studio (Local)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {settings.aiProvider === 'gemini' ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="geminikey">Gemini API Key</Label>
+                  <Input
+                    id="geminikey"
+                    type="password"
+                    value={settings.geminiApiKey}
+                    onChange={(e) => setSettings({...settings, geminiApiKey: e.target.value})}
+                    placeholder="Enter your Gemini API key"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Get your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="endpoint">LM Studio Endpoint</Label>
+                  <Input
+                    id="endpoint"
+                    value={settings.lmStudioEndpoint}
+                    onChange={(e) => setSettings({...settings, lmStudioEndpoint: e.target.value})}
+                    placeholder="http://localhost:1234"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Default LM Studio endpoint. Make sure LM Studio is running and a model is loaded.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="localmodel">Model Name</Label>
+                  <Input
+                    id="localmodel"
+                    value={settings.localModelName}
+                    onChange={(e) => setSettings({...settings, localModelName: e.target.value})}
+                    placeholder="local-model"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The name of the model loaded in LM Studio (usually shown in the interface).
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="openaikey">API Key (Optional)</Label>
+                  <Input
+                    id="openaikey"
+                    type="password"
+                    value={settings.openaiApiKey}
+                    onChange={(e) => setSettings({...settings, openaiApiKey: e.target.value})}
+                    placeholder="Optional API key for authentication"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Only needed if your LM Studio setup requires authentication.
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -151,12 +237,26 @@ export function Settings() {
                 rows={3}
                 placeholder="You are a helpful AI development assistant..."
               />
+              <p className="text-xs text-muted-foreground">Instructions that guide the AI's behavior</p>
             </div>
 
             <Button onClick={testConnection} variant="outline" className="gap-2">
               <TestTube className="w-4 h-4" />
               Test Connection
             </Button>
+
+            <div className="mt-4 p-4 bg-muted rounded-lg">
+              <h4 className="font-semibold mb-2">Recommended Models for LM Studio:</h4>
+              <ul className="text-sm space-y-1 text-muted-foreground">
+                <li>• <strong>Llama 3.1 8B Instruct</strong> - Great balance of speed and quality</li>
+                <li>• <strong>CodeLlama 7B Instruct</strong> - Specialized for code generation</li>
+                <li>• <strong>Mistral 7B Instruct</strong> - Fast and efficient</li>
+                <li>• <strong>Qwen2.5-Coder 7B</strong> - Excellent for coding tasks</li>
+              </ul>
+              <p className="text-xs mt-2 text-muted-foreground">
+                Download these models in LM Studio and make sure one is loaded before testing.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

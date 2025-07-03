@@ -20,7 +20,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div className="flex items-center gap-2">
               <div className="text-xs text-muted-foreground">
-                Gemini AI Connected
+                {localStorage.getItem('ai-provider') === 'lmstudio' ? 'Local AI Connected' : 'Gemini AI Connected'}
               </div>
               <div className="w-2 h-2 rounded-full bg-success animate-pulse"></div>
             </div>

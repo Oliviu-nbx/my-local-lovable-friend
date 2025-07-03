@@ -28,11 +28,18 @@ export function ChatInterface() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Initialize Gemini AI
-  const getGeminiInstance = () => {
+  // Initialize AI instance
+  const getAIInstance = () => {
+    const provider = localStorage.getItem('ai-provider') || 'gemini';
     const apiKey = localStorage.getItem('gemini-api-key') || 'AIzaSyBcRopXDUOEYmODdhYrGhW7g3uXOZYZt3M';
-    const genAI = new GoogleGenerativeAI(apiKey);
-    return genAI.getGenerativeModel({ model: "gemini-pro" });
+    
+    if (provider === 'gemini') {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      return { type: 'gemini', instance: genAI.getGenerativeModel({ model: "gemini-1.5-flash" }) };
+    } else {
+      const endpoint = localStorage.getItem('lm-studio-endpoint') || 'http://localhost:1234';
+      return { type: 'openai', endpoint, apiKey: localStorage.getItem('openai-api-key') || '' };
+    }
   };
 
   const scrollToBottom = () => {
@@ -63,7 +70,7 @@ export function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const model = getGeminiInstance();
+      const aiConfig = getAIInstance();
       const systemPrompt = localStorage.getItem('system-prompt') || 'You are a helpful AI development assistant. Provide clear, concise, and practical answers to development questions.';
       
       // Create context from recent messages
@@ -71,25 +78,58 @@ export function ChatInterface() {
         `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
       ).join('\n');
       
-      const prompt = `${systemPrompt}\n\nConversation history:\n${context}\n\nUser: ${userMessage.content}\n\nAssistant:`;
-      
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      let assistantResponse = '';
+
+      if (aiConfig.type === 'gemini') {
+        const prompt = `${systemPrompt}\n\nConversation history:\n${context}\n\nUser: ${userMessage.content}\n\nAssistant:`;
+        const result = await aiConfig.instance.generateContent(prompt);
+        const response = await result.response;
+        assistantResponse = response.text();
+      } else {
+        // OpenAI-compatible API (LM Studio)
+        const response = await fetch(`${aiConfig.endpoint}/v1/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(aiConfig.apiKey && { 'Authorization': `Bearer ${aiConfig.apiKey}` })
+          },
+          body: JSON.stringify({
+            model: localStorage.getItem('local-model-name') || 'local-model',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...messages.slice(-10).map(msg => ({
+                role: msg.role === 'assistant' ? 'assistant' : 'user',
+                content: msg.content
+              })),
+              { role: 'user', content: userMessage.content }
+            ],
+            temperature: parseFloat(localStorage.getItem('temperature') || '0.7'),
+            max_tokens: parseInt(localStorage.getItem('max-tokens') || '2048')
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        assistantResponse = data.choices[0]?.message?.content || 'No response received';
+      }
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: text,
+        content: assistantResponse,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Gemini API Error:', error);
+      console.error('AI API Error:', error);
+      const provider = localStorage.getItem('ai-provider') || 'gemini';
       toast({
         title: "Error",
-        description: "Failed to get response from Gemini. Check your API key in Settings.",
+        description: `Failed to get response from ${provider === 'gemini' ? 'Gemini' : 'Local AI'}. Check your configuration in Settings.`,
         variant: "destructive"
       });
     } finally {
