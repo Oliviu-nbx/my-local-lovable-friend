@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectState } from '@/types/tools';
 import { ExternalLink, Code, FileText, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 interface ProjectPreviewProps {
   project: ProjectState | null;
@@ -10,6 +10,23 @@ interface ProjectPreviewProps {
 
 export function ProjectPreview({ project }: ProjectPreviewProps) {
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Create a hash of the project files to detect changes
+  const projectHash = useMemo(() => {
+    if (!project) return '';
+    const fileContents = Object.values(project.files)
+      .map(file => `${file.path}:${file.lastModified?.getTime()}:${file.content?.length || 0}`)
+      .sort()
+      .join('|');
+    return fileContents;
+  }, [project]);
+
+  // Auto-refresh when project files change
+  useEffect(() => {
+    if (projectHash) {
+      setRefreshKey(prev => prev + 1);
+    }
+  }, [projectHash]);
 
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);

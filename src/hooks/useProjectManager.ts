@@ -149,15 +149,66 @@ export function useProjectManager() {
           break;
       }
 
-      // Update preview URL if it's an HTML file
+      // Update preview URL for HTML files
       let previewUrl = project.previewUrl;
-      if (operation.path.endsWith('.html') && operation.type !== 'delete') {
+      const htmlFiles = Object.values(updatedFiles).filter(file => 
+        file.type === 'file' && file.path.endsWith('.html')
+      );
+      
+      if (htmlFiles.length > 0) {
+        // Find the main HTML file (index.html or first .html file)
+        const mainHtmlFile = htmlFiles.find(file => 
+          file.path === 'index.html' || file.path.endsWith('/index.html')
+        ) || htmlFiles[0];
+        
+        if (mainHtmlFile) {
+          // Clean up old URL
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+          }
+          
+          // Create new preview URL with all files
+          let htmlContent = mainHtmlFile.content || '';
+          
+          // Inject other files as inline resources for better preview
+          const cssFiles = Object.values(updatedFiles).filter(file => 
+            file.type === 'file' && file.path.endsWith('.css')
+          );
+          const jsFiles = Object.values(updatedFiles).filter(file => 
+            file.type === 'file' && file.path.endsWith('.js')
+          );
+          
+          // Inject CSS files
+          cssFiles.forEach(cssFile => {
+            const styleTag = `<style>/* ${cssFile.path} */\n${cssFile.content}\n</style>`;
+            if (htmlContent.includes('</head>')) {
+              htmlContent = htmlContent.replace('</head>', `${styleTag}\n</head>`);
+            } else {
+              htmlContent = `${styleTag}\n${htmlContent}`;
+            }
+          });
+          
+          // Inject JS files
+          jsFiles.forEach(jsFile => {
+            const scriptTag = `<script>/* ${jsFile.path} */\n${jsFile.content}\n</script>`;
+            if (htmlContent.includes('</body>')) {
+              htmlContent = htmlContent.replace('</body>', `${scriptTag}\n</body>`);
+            } else {
+              htmlContent = `${htmlContent}\n${scriptTag}`;
+            }
+          });
+          
+          const blob = new Blob([htmlContent], { type: 'text/html' });
+          previewUrl = URL.createObjectURL(blob);
+          console.log('Updated preview URL for project with', htmlFiles.length, 'HTML file(s)');
+        }
+      } else if (operation.type === 'delete' && operation.path.endsWith('.html')) {
+        // Clean up preview URL if the last HTML file was deleted
         if (previewUrl) {
           URL.revokeObjectURL(previewUrl);
+          previewUrl = undefined;
+          console.log('Removed preview URL - no HTML files remaining');
         }
-        const blob = new Blob([operation.content || ''], { type: 'text/html' });
-        previewUrl = URL.createObjectURL(blob);
-        console.log('Created preview URL for:', operation.path);
       }
 
       const updatedProject = {

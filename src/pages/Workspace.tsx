@@ -137,7 +137,7 @@ export function Workspace() {
           <div className="w-1/2 flex flex-col">
             {activeView === 'preview' ? (
               <div className="flex-1 p-4">
-                <ProjectPreview key={refreshKey} project={currentProject} />
+                <ProjectPreview project={currentProject} />
               </div>
             ) : (
               <div className="flex-1 flex flex-col bg-sidebar">
