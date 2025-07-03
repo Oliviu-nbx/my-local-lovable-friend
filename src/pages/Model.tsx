@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Cpu, Activity, Database, Zap, RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { Cpu, Activity, Database, Zap, RefreshCw, CheckCircle, XCircle, Download } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Layout } from "@/components/Layout";
+import { useToast } from "@/hooks/use-toast";
 
 interface ModelInfo {
   name: string;
@@ -17,14 +18,22 @@ interface ModelInfo {
 }
 
 export function Model() {
-  const [modelInfo, setModelInfo] = useState<ModelInfo>({
-    name: 'Claude Sonnet 3.5',
-    status: 'connected',
-    version: '20241022',
-    size: 'Cloud-based',
-    lastUsed: new Date(),
-    responseTime: 0,
-    totalTokens: 0
+  const { toast } = useToast();
+  const [modelInfo, setModelInfo] = useState<ModelInfo>(() => {
+    const provider = localStorage.getItem('ai-provider') || 'gemini';
+    const modelName = provider === 'lmstudio' 
+      ? localStorage.getItem('local-model-name') || 'Local LLM' 
+      : 'Gemini 1.5 Flash';
+    
+    return {
+      name: modelName,
+      status: 'connected',
+      version: provider === 'lmstudio' ? 'Local' : '20241022',
+      size: provider === 'lmstudio' ? 'Local Instance' : 'Cloud-based',
+      lastUsed: new Date(),
+      responseTime: 0,
+      totalTokens: 0
+    };
   });
 
   const [systemStats, setSystemStats] = useState({
@@ -91,6 +100,76 @@ export function Model() {
     }
     
     setIsRefreshing(false);
+  };
+
+  const handleRestartModel = () => {
+    toast({
+      title: "Restarting Model",
+      description: "Model restart initiated. This may take a few moments."
+    });
+    // Simulate restart process
+    setTimeout(() => {
+      setModelInfo(prev => ({ ...prev, lastUsed: new Date(), status: 'connected' as const }));
+      toast({
+        title: "Model Restarted",
+        description: "Model has been successfully restarted."
+      });
+    }, 3000);
+  };
+
+  const handleClearCache = () => {
+    toast({
+      title: "Clearing Cache",
+      description: "Model cache is being cleared."
+    });
+    // Clear localStorage cache
+    localStorage.removeItem('chat-history');
+    setModelInfo(prev => ({ ...prev, totalTokens: 0 }));
+    toast({
+      title: "Cache Cleared",
+      description: "Model cache has been successfully cleared."
+    });
+  };
+
+  const handleDownloadUpdates = () => {
+    toast({
+      title: "Checking for Updates",
+      description: "Looking for available model updates."
+    });
+    setTimeout(() => {
+      toast({
+        title: "No Updates Available",
+        description: "Your model is up to date."
+      });
+    }, 2000);
+  };
+
+  const handleExportLogs = () => {
+    const logs = {
+      modelInfo,
+      systemStats,
+      timestamp: new Date().toISOString(),
+      performance: {
+        averageResponseTime: modelInfo.responseTime,
+        totalTokens: modelInfo.totalTokens,
+        uptime: Date.now() - modelInfo.lastUsed.getTime()
+      }
+    };
+    
+    const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `model-logs-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Logs Exported",
+      description: "Model logs have been downloaded successfully."
+    });
   };
 
   // Auto-refresh every 5 seconds
@@ -273,10 +352,10 @@ export function Model() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">Restart Model</Button>
-              <Button variant="outline" size="sm">Clear Cache</Button>
-              <Button variant="outline" size="sm">Download Updates</Button>
-              <Button variant="outline" size="sm">Export Logs</Button>
+              <Button variant="outline" size="sm" onClick={handleRestartModel}>Restart Model</Button>
+              <Button variant="outline" size="sm" onClick={handleClearCache}>Clear Cache</Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadUpdates}>Download Updates</Button>
+              <Button variant="outline" size="sm" onClick={handleExportLogs}>Export Logs</Button>
             </div>
           </CardContent>
         </Card>

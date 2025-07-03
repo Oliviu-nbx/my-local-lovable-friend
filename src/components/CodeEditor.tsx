@@ -5,6 +5,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { ProjectFile } from '@/types/tools';
 import { Save, Code, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import javascript from 'react-syntax-highlighter/dist/esm/languages/hljs/javascript';
+import typescript from 'react-syntax-highlighter/dist/esm/languages/hljs/typescript';
+import css from 'react-syntax-highlighter/dist/esm/languages/hljs/css';
+import xml from 'react-syntax-highlighter/dist/esm/languages/hljs/xml';
+import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
+
+// Register languages
+SyntaxHighlighter.registerLanguage('javascript', javascript);
+SyntaxHighlighter.registerLanguage('typescript', typescript);
+SyntaxHighlighter.registerLanguage('css', css);
+SyntaxHighlighter.registerLanguage('xml', xml);
+SyntaxHighlighter.registerLanguage('json', json);
 
 interface CodeEditorProps {
   file: ProjectFile | null;
@@ -16,7 +30,28 @@ export function CodeEditor({ file, onSave, readOnly = false }: CodeEditorProps) 
   const [content, setContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showSyntaxHighlight, setShowSyntaxHighlight] = useState(true);
   const { toast } = useToast();
+
+  const getLanguageFromFile = (filename: string): string => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'js':
+      case 'jsx':
+        return 'javascript';
+      case 'ts':
+      case 'tsx':
+        return 'typescript';
+      case 'css':
+        return 'css';
+      case 'html':
+        return 'xml';
+      case 'json':
+        return 'json';
+      default:
+        return 'javascript';
+    }
+  };
 
   useEffect(() => {
     if (file) {
@@ -80,6 +115,16 @@ export function CodeEditor({ file, onSave, readOnly = false }: CodeEditorProps) 
               </Button>
             )}
             
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSyntaxHighlight(!showSyntaxHighlight)}
+              className="gap-2"
+            >
+              <Code className="w-4 h-4" />
+              {showSyntaxHighlight ? 'Plain' : 'Highlight'}
+            </Button>
+            
             {!readOnly && onSave && hasChanges && (
               <Button
                 onClick={handleSave}
@@ -110,6 +155,42 @@ export function CodeEditor({ file, onSave, readOnly = false }: CodeEditorProps) 
               </div>
             )}
           </div>
+        ) : showSyntaxHighlight && !readOnly ? (
+          <div className="flex-1 relative">
+            <SyntaxHighlighter
+              language={getLanguageFromFile(file.path)}
+              style={vs2015}
+              customStyle={{
+                margin: 0,
+                padding: '1rem',
+                background: 'hsl(var(--code-bg))',
+                color: 'hsl(var(--foreground))',
+                fontSize: '14px',
+                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+                height: '100%',
+                overflow: 'auto'
+              }}
+              showLineNumbers={true}
+              lineNumberStyle={{
+                color: 'hsl(var(--muted-foreground))',
+                paddingRight: '1rem',
+                minWidth: '3rem'
+              }}
+            >
+              {content}
+            </SyntaxHighlighter>
+            <Textarea
+              value={content}
+              onChange={(e) => handleContentChange(e.target.value)}
+              className="absolute inset-0 font-mono text-sm resize-none border-0 p-4 bg-transparent text-transparent caret-white outline-none"
+              placeholder=""
+              style={{ 
+                lineHeight: '1.5',
+                tabSize: 2,
+                whiteSpace: 'pre'
+              }}
+            />
+          </div>
         ) : (
           <Textarea
             value={content}
@@ -117,6 +198,11 @@ export function CodeEditor({ file, onSave, readOnly = false }: CodeEditorProps) 
             className="flex-1 font-mono text-sm resize-none border-0 p-4 bg-code-bg text-foreground"
             placeholder="Enter your code here..."
             readOnly={readOnly}
+            style={{ 
+              lineHeight: '1.5',
+              tabSize: 2,
+              whiteSpace: 'pre'
+            }}
           />
         )}
         

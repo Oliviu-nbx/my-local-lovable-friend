@@ -20,7 +20,14 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div className="flex items-center gap-2">
               <div className="text-xs text-muted-foreground">
-                {localStorage.getItem('ai-provider') === 'lmstudio' ? 'Local AI Connected' : 'Gemini AI Connected'}
+                {(() => {
+                  const provider = localStorage.getItem('ai-provider') || 'gemini';
+                  if (provider === 'lmstudio') {
+                    const modelName = localStorage.getItem('local-model-name') || 'Local LLM';
+                    return `${modelName} Connected`;
+                  }
+                  return 'Gemini AI Connected';
+                })()}
               </div>
               <div className="w-2 h-2 rounded-full bg-success animate-pulse"></div>
             </div>
