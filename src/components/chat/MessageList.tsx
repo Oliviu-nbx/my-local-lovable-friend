@@ -34,14 +34,22 @@ export function MessageList({
     if (scrollAreaRef.current) {
       const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
+        scrollElement.scrollTo({
+          top: scrollElement.scrollHeight,
+          behavior: 'smooth'
+        });
       }
     }
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    // Use setTimeout to ensure DOM is updated
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [messages, isLoading, isStreaming]);
 
   return (
     <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
