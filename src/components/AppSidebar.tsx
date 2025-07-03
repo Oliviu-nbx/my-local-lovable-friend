@@ -27,8 +27,9 @@ import {
 
 const navigationItems = [
   { title: "Chat", url: "/", icon: MessageSquare },
+  { title: "Projects", url: "/projects", icon: FolderOpen },
   { title: "Development", url: "/development", icon: Hammer },
-  { title: "Files", url: "/files", icon: FolderOpen },
+  { title: "Files", url: "/files", icon: FileText },
   { title: "Editor", url: "/editor", icon: Code2 },
   { title: "Terminal", url: "/terminal", icon: Terminal },
 ];

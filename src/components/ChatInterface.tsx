@@ -21,18 +21,20 @@ interface Message {
 
 export function ChatInterface() {
   const projectManager = useProjectManager();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hello! I'm your AI development assistant with file creation capabilities. I can build complete websites and applications for you. Just tell me what you want to create and I'll build it with working files and show you the preview!\n\nTry asking me to create something like:\n• \"Make a simple website with hero section, 3 services, and contact form\"\n• \"Create a todo app with React\"\n• \"Build a landing page for a restaurant\"",
-      timestamp: new Date()
-    }
-  ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Use static messages for now to avoid React hook issues
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: "Hello! I'm your AI development assistant. I can create files and build projects. Tell me what you want to create!",
+      timestamp: new Date()
+    }
+  ]);
 
   // Initialize AI instance
   const getAIInstance = () => {
@@ -136,26 +138,29 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
               // Execute each tool call
               for (const toolCall of toolCalls) {
                 try {
-                  // Arguments should already be an object now
+                  // Simple direct execution
                   const args = toolCall.function.arguments;
+                  console.log('Executing tool:', toolCall.function.name, args);
                   
-                  const result = executeToolCall(
-                    toolCall.function.name,
-                    args,
-                    (operation) => {
-                      if (projectManager.currentProject) {
-                        projectManager.executeFileOperation(projectManager.currentProject, operation);
-                      } else {
-                        const projectId = projectManager.createProject('New Project');
-                        projectManager.executeFileOperation(projectId, operation);
-                      }
-                    },
-                    (name) => projectManager.createProject(name)
-                  );
-                  toolResults.push(result);
+                  if (toolCall.function.name === 'create_file') {
+                    // Create project if none exists
+                    if (!projectManager.currentProject) {
+                      projectManager.createProject('New Project');
+                    }
+                    
+                    // Create the file
+                    if (projectManager.currentProject) {
+                      projectManager.executeFileOperation(projectManager.currentProject, {
+                        type: 'create',
+                        path: args.path,
+                        content: args.content
+                      });
+                      toolResults.push(`✅ Created file: ${args.path}`);
+                    }
+                  }
                 } catch (error) {
                   console.error('Tool execution error:', error);
-                  toolResults.push(`Error: ${error}`);
+                  toolResults.push(`❌ Error: ${error}`);
                 }
               }
             } else {
