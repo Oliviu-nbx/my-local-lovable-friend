@@ -10,6 +10,7 @@ import Terminal from "./pages/Terminal";
 import Model from "./pages/Model";
 import Settings from "./pages/Settings";
 import Development from "./pages/Development";
+import Projects from "./pages/Projects";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/projects" element={<Projects />} />
           <Route path="/files" element={<Files />} />
           <Route path="/editor" element={<Editor />} />
           <Route path="/terminal" element={<Terminal />} />

@@ -1,9 +1,43 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ProjectState, ProjectFile, FileOperation } from '@/types/tools';
+
+const STORAGE_KEY = 'ai-dev-projects';
+const CURRENT_PROJECT_KEY = 'ai-dev-current-project';
 
 export function useProjectManager() {
   const [projects, setProjects] = useState<Record<string, ProjectState>>({});
   const [currentProject, setCurrentProject] = useState<string | null>(null);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedProjects = localStorage.getItem(STORAGE_KEY);
+    const savedCurrentProject = localStorage.getItem(CURRENT_PROJECT_KEY);
+    
+    if (savedProjects) {
+      try {
+        const parsed = JSON.parse(savedProjects);
+        setProjects(parsed);
+      } catch (error) {
+        console.error('Failed to load projects:', error);
+      }
+    }
+    
+    if (savedCurrentProject) {
+      setCurrentProject(savedCurrentProject);
+    }
+  }, []);
+
+  // Save to localStorage whenever projects change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+  }, [projects]);
+
+  // Save current project whenever it changes
+  useEffect(() => {
+    if (currentProject) {
+      localStorage.setItem(CURRENT_PROJECT_KEY, currentProject);
+    }
+  }, [currentProject]);
 
   const createProject = useCallback((name: string) => {
     const projectId = Date.now().toString();
@@ -75,6 +109,25 @@ export function useProjectManager() {
     return currentProject ? projects[currentProject] : null;
   }, [currentProject, projects]);
 
+  const getAllProjects = useCallback(() => {
+    return Object.entries(projects).map(([id, project]) => ({
+      id,
+      ...project
+    }));
+  }, [projects]);
+
+  const deleteProject = useCallback((projectId: string) => {
+    setProjects(prev => {
+      const updated = { ...prev };
+      delete updated[projectId];
+      return updated;
+    });
+    
+    if (currentProject === projectId) {
+      setCurrentProject(null);
+    }
+  }, [currentProject]);
+
   return {
     projects,
     currentProject,
@@ -82,6 +135,8 @@ export function useProjectManager() {
     executeFileOperation,
     getProject,
     getCurrentProject,
-    setCurrentProject
+    setCurrentProject,
+    getAllProjects,
+    deleteProject
   };
 }
