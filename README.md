@@ -1,73 +1,111 @@
-# Welcome to your Lovable project
+# AI Development Assistant
 
-## Project info
+A local AI development assistant inspired by Lovable.dev that works with your locally installed LLM.
 
-**URL**: https://lovable.dev/projects/1a7090b7-1ff6-47bb-8229-88a3065c6b8d
+## Features
 
-## How can I edit this code?
+- 💬 **Chat Interface**: Interactive chat with your local LLM
+- 📁 **File Explorer**: Browse and manage project files
+- 🔧 **Code Editor**: Write and edit code with syntax highlighting
+- 🖥️ **Terminal**: Execute commands and interact with your system
+- 📊 **Model Status**: Monitor your local LLM performance and health
+- ⚙️ **Settings**: Configure your LLM connection and preferences
 
-There are several ways of editing your application.
+## Prerequisites
 
-**Use Lovable**
+- Node.js (v18 or higher)
+- npm or yarn or bun
+- A local LLM running (e.g., Ollama, LocalAI, etc.)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/1a7090b7-1ff6-47bb-8229-88a3065c6b8d) and start prompting.
+## Installation
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Clone or download the project files**
 
-**Use your preferred IDE**
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   bun install
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+3. **Start the development server**
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   # or
+   bun dev
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+4. **Open your browser**
+   Navigate to `http://localhost:8080`
 
-Follow these steps:
+## Setting up your Local LLM
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Option 1: Ollama (Recommended)
+1. Install [Ollama](https://ollama.com/)
+2. Download a model: `ollama pull llama2`
+3. Start Ollama: `ollama serve`
+4. In the app, go to Settings and set endpoint to `http://localhost:11434`
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Option 2: Other Local LLMs
+1. Start your local LLM server
+2. Note the endpoint URL and port
+3. Configure in the app's Settings page
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Configuration
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+1. **Navigate to Settings** in the app
+2. **Configure LLM Settings**:
+   - API Endpoint: Your local LLM URL (e.g., `http://localhost:11434`)
+   - Model Name: The model you want to use (e.g., `llama2`, `codellama`)
+   - Temperature: Control randomness (0.0-1.0)
+   - Max Tokens: Maximum response length
+3. **Test Connection** to verify everything works
 
-**Edit a file directly in GitHub**
+## Usage
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- **Chat**: Use the main chat interface to interact with your AI assistant
+- **Files**: Browse and manage your project files
+- **Editor**: Write and edit code with AI assistance
+- **Terminal**: Execute commands and scripts
+- **Model**: Monitor your LLM's performance and system resources
 
-**Use GitHub Codespaces**
+## Tech Stack
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- **Frontend**: React 18, TypeScript, Vite
+- **UI**: Tailwind CSS, Shadcn/ui
+- **Routing**: React Router
+- **State**: React Query
+- **Icons**: Lucide React
 
-## What technologies are used for this project?
+## Development
 
-This project is built with:
+To modify or extend the application:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. **Components** are in `src/components/`
+2. **Pages** are in `src/pages/`
+3. **Styles** use the design system defined in `src/index.css`
+4. **UI Components** are from Shadcn/ui in `src/components/ui/`
 
-## How can I deploy this project?
+## Troubleshooting
 
-Simply open [Lovable](https://lovable.dev/projects/1a7090b7-1ff6-47bb-8229-88a3065c6b8d) and click on Share -> Publish.
+### LLM Connection Issues
+- Ensure your local LLM is running
+- Check the endpoint URL and port
+- Verify firewall settings aren't blocking the connection
 
-## Can I connect a custom domain to my Lovable project?
+### Performance Issues
+- Monitor system resources in the Model page
+- Adjust temperature and token limits in Settings
+- Consider using a smaller model if experiencing slowdowns
 
-Yes, you can!
+## Contributing
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+This is a personal development tool. Feel free to customize it for your needs.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## License
+
+MIT License - feel free to use and modify as needed.
