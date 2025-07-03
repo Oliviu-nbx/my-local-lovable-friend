@@ -26,15 +26,33 @@ export function ChatInterface() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Use static messages for now to avoid React hook issues
-  const [messages, setMessages] = useState<Message[]>([
-    {
+  // Load messages from localStorage
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = localStorage.getItem('chat-messages');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load chat:', error);
+    }
+    
+    return [{
       id: '1',
       role: 'assistant',
       content: "Hello! I'm your AI development assistant. I can create files and build projects. Tell me what you want to create!",
       timestamp: new Date()
-    }
-  ]);
+    }];
+  });
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('chat-messages', JSON.stringify(messages));
+  }, [messages]);
 
   // Initialize AI instance
   const getAIInstance = () => {
@@ -150,18 +168,24 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
                   
                   if (toolCall.function.name === 'create_file') {
                     // Create project if none exists
-                    if (!projectManager.currentProject) {
-                      projectManager.createProject('New Project');
+                    let projectId = projectManager.currentProject;
+                    if (!projectId) {
+                      projectId = projectManager.createProject('AI Generated Project');
+                      console.log('Created new project:', projectId);
                     }
                     
                     // Create the file
-                    if (projectManager.currentProject && args.path && args.content !== undefined) {
-                      projectManager.executeFileOperation(projectManager.currentProject, {
+                    if (projectId && args.path && args.content !== undefined) {
+                      console.log('Creating file:', args.path, 'in project:', projectId);
+                      projectManager.executeFileOperation(projectId, {
                         type: 'create',
                         path: args.path,
                         content: args.content
                       });
                       toolResults.push(`✅ Created file: ${args.path}`);
+                    } else {
+                      console.error('Missing project ID or file data');
+                      toolResults.push(`❌ Failed to create file: missing data`);
                     }
                   }
                 } catch (error) {
