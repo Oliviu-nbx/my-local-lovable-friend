@@ -65,7 +65,7 @@ export function Workspace() {
 
   return (
     <Layout>
-      <div className="h-screen flex flex-col">
+      <div className="h-screen flex flex-col overflow-hidden">
         {/* Project Selector Header */}
         <div className="flex-shrink-0 p-4 border-b border-border bg-card">
           <div className="flex items-center justify-between">
