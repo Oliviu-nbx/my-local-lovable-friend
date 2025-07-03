@@ -6,9 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Layout } from "@/components/Layout";
 import { useToast } from "@/hooks/use-toast";
+import { useProjectManager } from "@/hooks/useProjectManager";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function Editor() {
   const [activeTab, setActiveTab] = useState("editor");
+  const projectManager = useProjectManager();
+  const allProjects = projectManager.getAllProjects();
   const [code, setCode] = useState(`// Welcome to AI Dev Editor
 // This is a simple code editor with AI assistance
 
@@ -50,10 +54,26 @@ console.log(message);
     <Layout>
       <div className="h-full flex flex-col">
         {/* Editor Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-          <div>
-            <h2 className="text-lg font-semibold">Code Editor</h2>
-            <p className="text-sm text-muted-foreground">Write and edit your code with AI assistance</p>
+        <div className="flex items-center justify-between p-4 border-b border-code-border bg-code-bg">
+          <div className="flex items-center gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Code Editor</h2>
+              <p className="text-sm text-muted-foreground">Write and edit your code with AI assistance</p>
+            </div>
+            <div className="w-64">
+              <Select value={projectManager.currentProject || ""} onValueChange={projectManager.setCurrentProject}>
+                <SelectTrigger className="bg-sidebar-accent border-sidebar-border text-sidebar-foreground">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleSave} className="gap-2">
@@ -70,39 +90,37 @@ console.log(message);
         {/* Editor Content */}
         <div className="flex-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-2 bg-card border-b border-border rounded-none">
-              <TabsTrigger value="editor" className="gap-2">
+            <TabsList className="grid w-full grid-cols-2 bg-code-bg border-b border-code-border rounded-none">
+              <TabsTrigger value="editor" className="gap-2 text-foreground">
                 <Code className="w-4 h-4" />
                 Editor
               </TabsTrigger>
-              <TabsTrigger value="preview" className="gap-2">
+              <TabsTrigger value="preview" className="gap-2 text-foreground">
                 <Eye className="w-4 h-4" />
                 Preview
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="editor" className="flex-1 m-0">
-              <div className="h-full p-6 bg-editor-bg">
-                <Card className="h-full bg-code-bg border-code-border">
-                  <Textarea
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="h-full resize-none border-0 bg-transparent font-mono text-sm"
-                    placeholder="Start writing your code here..."
-                  />
-                </Card>
+              <div className="h-full bg-editor-bg">
+                <Textarea
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="h-full resize-none border-0 bg-code-bg text-foreground font-mono text-sm p-4"
+                  placeholder="Start writing your code here..."
+                />
               </div>
             </TabsContent>
 
             <TabsContent value="preview" className="flex-1 m-0">
-              <div className="h-full p-6 bg-background">
-                <Card className="h-full p-6">
-                  <div className="flex items-center gap-2 mb-4">
+              <div className="h-full bg-editor-bg">
+                <Card className="h-full bg-code-bg border-code-border">
+                  <div className="flex items-center gap-2 p-4 border-b border-code-border">
                     <FileText className="w-5 h-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Code Preview</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Code Preview</h3>
                   </div>
-                  <pre className="text-sm bg-code-bg p-4 rounded-lg border border-code-border overflow-auto">
-                    <code className="text-foreground">{code}</code>
+                  <pre className="text-sm p-4 overflow-auto h-full">
+                    <code className="text-foreground font-mono">{code}</code>
                   </pre>
                 </Card>
               </div>
@@ -111,9 +129,9 @@ console.log(message);
         </div>
 
         {/* Status Bar */}
-        <div className="border-t border-border bg-card px-4 py-2">
+        <div className="border-t border-code-border bg-code-bg px-4 py-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 font-mono">
               <span>TypeScript</span>
               <span>Line 1, Column 1</span>
               <span>{code.split('\n').length} lines</span>

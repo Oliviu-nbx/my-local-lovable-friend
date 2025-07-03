@@ -5,46 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Layout } from "@/components/Layout";
-
-interface FileNode {
-  name: string;
-  type: 'file' | 'folder';
-  path: string;
-  children?: FileNode[];
-  size?: number;
-  modified?: Date;
-}
-
-// Mock file system data
-const mockFiles: FileNode[] = [
-  {
-    name: "src",
-    type: "folder",
-    path: "/src",
-    children: [
-      { name: "components", type: "folder", path: "/src/components", children: [] },
-      { name: "pages", type: "folder", path: "/src/pages", children: [] },
-      { name: "utils", type: "folder", path: "/src/utils", children: [] },
-      { name: "App.tsx", type: "file", path: "/src/App.tsx", size: 2048, modified: new Date() },
-      { name: "main.tsx", type: "file", path: "/src/main.tsx", size: 512, modified: new Date() },
-    ]
-  },
-  {
-    name: "public",
-    type: "folder",
-    path: "/public",
-    children: [
-      { name: "index.html", type: "file", path: "/public/index.html", size: 1024, modified: new Date() },
-    ]
-  },
-  { name: "package.json", type: "file", path: "/package.json", size: 4096, modified: new Date() },
-  { name: "README.md", type: "file", path: "/README.md", size: 2048, modified: new Date() },
-];
+import { useProjectManager } from "@/hooks/useProjectManager";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function Files() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["/src"]));
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const projectManager = useProjectManager();
+  
+  const currentProject = projectManager.getCurrentProject();
+  const allProjects = projectManager.getAllProjects();
+  const files = currentProject ? Object.entries(currentProject.files) : [];
 
   const toggleFolder = (path: string) => {
     const newExpanded = new Set(expandedFolders);
@@ -73,55 +45,30 @@ export function Files() {
     }
   };
 
-  const renderFileTree = (nodes: FileNode[], depth = 0) => {
-    return nodes
-      .filter(node => 
+  const renderFileTree = () => {
+    return files
+      .filter(([path]) => 
         searchTerm === "" || 
-        node.name.toLowerCase().includes(searchTerm.toLowerCase())
+        path.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      .map((node) => (
-        <div key={node.path}>
+      .map(([path, file]) => (
+        <div key={path}>
           <div
-            className={`flex items-center gap-2 py-2 px-2 rounded-md cursor-pointer transition-smooth ${
-              selectedFile === node.path 
-                ? 'bg-primary/20 text-primary' 
-                : 'hover:bg-accent/50'
+            className={`flex items-center gap-2 py-1 px-2 rounded-md cursor-pointer hover:bg-sidebar-accent transition-smooth ${
+              selectedFile === path 
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
+                : 'text-sidebar-foreground'
             }`}
-            style={{ paddingLeft: `${depth * 20 + 8}px` }}
-            onClick={() => {
-              if (node.type === 'folder') {
-                toggleFolder(node.path);
-              } else {
-                setSelectedFile(node.path);
-              }
-            }}
+            onClick={() => setSelectedFile(path)}
           >
-            {node.type === 'folder' ? (
-              <Folder 
-                className={`w-4 h-4 ${
-                  expandedFolders.has(node.path) ? 'text-primary' : 'text-muted-foreground'
-                }`} 
-              />
-            ) : (
-              getFileIcon(node.name)
-            )}
+            {getFileIcon(path)}
             
-            <span className="text-sm">{node.name}</span>
+            <span className="text-sm font-mono">{path}</span>
             
-            {node.type === 'file' && node.size && (
-              <span className="ml-auto text-xs text-muted-foreground">
-                {(node.size / 1024).toFixed(1)}KB
-              </span>
-            )}
+            <span className="ml-auto text-xs text-muted-foreground">
+              {(file.content.length / 1024).toFixed(1)}KB
+            </span>
           </div>
-          
-          {node.type === 'folder' && 
-           expandedFolders.has(node.path) && 
-           node.children && (
-            <div>
-              {renderFileTree(node.children, depth + 1)}
-            </div>
-          )}
         </div>
       ));
   };
@@ -130,19 +77,27 @@ export function Files() {
     <Layout>
       <div className="flex h-full">
         {/* File Explorer Sidebar */}
-        <div className="w-80 border-r border-border bg-card">
+        <div className="w-80 border-r border-sidebar-border bg-sidebar">
           {/* Header */}
-          <div className="p-4 border-b border-border">
+          <div className="p-4 border-b border-sidebar-border">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Files</h2>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline">
-                  <Plus className="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="outline">
-                  <Upload className="w-4 h-4" />
-                </Button>
-              </div>
+              <h2 className="text-lg font-semibold text-sidebar-foreground">Files</h2>
+            </div>
+            
+            {/* Project Selector */}
+            <div className="mb-4">
+              <Select value={projectManager.currentProject || ""} onValueChange={projectManager.setCurrentProject}>
+                <SelectTrigger className="bg-sidebar-accent border-sidebar-border text-sidebar-foreground">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             {/* Search */}
@@ -152,7 +107,7 @@ export function Files() {
                 placeholder="Search files..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-9 bg-sidebar-accent border-sidebar-border text-sidebar-foreground"
               />
             </div>
           </div>
@@ -160,49 +115,41 @@ export function Files() {
           {/* File Tree */}
           <ScrollArea className="flex-1">
             <div className="p-2">
-              {renderFileTree(mockFiles)}
+              {files.length > 0 ? renderFileTree() : (
+                <div className="text-center text-muted-foreground py-8">
+                  <File className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No files yet</p>
+                  <p className="text-sm">Create files in Development page</p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>
 
         {/* File Preview/Editor */}
         <div className="flex-1 bg-editor-bg">
-          {selectedFile ? (
+          {selectedFile && currentProject?.files[selectedFile] ? (
             <div className="h-full flex flex-col">
               {/* File Header */}
               <div className="flex items-center gap-2 p-4 border-b border-code-border bg-code-bg">
-                {getFileIcon(selectedFile.split('/').pop() || '')}
-                <span className="text-sm font-medium">{selectedFile}</span>
-                <div className="ml-auto flex gap-2">
-                  <Button size="sm" variant="outline">Edit</Button>
-                  <Button size="sm" variant="outline">Preview</Button>
-                </div>
+                {getFileIcon(selectedFile)}
+                <span className="text-sm font-medium text-foreground font-mono">{selectedFile}</span>
               </div>
 
               {/* File Content */}
-              <div className="flex-1 p-6">
-                <Card className="h-full bg-code-bg border-code-border p-4">
-                  <pre className="text-sm text-muted-foreground font-mono">
-                    {`// File: ${selectedFile}
-// This is a preview of the selected file.
-// In a real implementation, this would show the actual file contents.
-
-export default function Component() {
-  return (
-    <div>
-      <h1>Hello from ${selectedFile.split('/').pop()}</h1>
-    </div>
-  );
-}`}
+              <div className="flex-1 p-0">
+                <div className="h-full bg-code-bg">
+                  <pre className="text-sm text-foreground font-mono p-4 h-full overflow-auto">
+                    <code>{currentProject.files[selectedFile].content}</code>
                   </pre>
-                </Card>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center">
+            <div className="h-full flex items-center justify-center bg-editor-bg">
               <div className="text-center">
                 <Folder className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No file selected</h3>
+                <h3 className="text-lg font-medium mb-2 text-foreground">No file selected</h3>
                 <p className="text-muted-foreground">
                   Select a file from the explorer to view its contents
                 </p>

@@ -100,9 +100,9 @@ export function FileExplorer({
   const files = Object.entries(project.files).sort(([a], [b]) => a.localeCompare(b));
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col bg-sidebar border-sidebar-border">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-sidebar-foreground">
           <Folder className="w-5 h-5" />
           Files
           <span className="text-sm font-normal text-muted-foreground">
@@ -117,13 +117,13 @@ export function FileExplorer({
             {files.map(([path, file]) => (
               <div
                 key={path}
-                className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-accent group ${
-                  selectedFile === path ? 'bg-accent' : ''
+                className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-sidebar-accent group transition-smooth ${
+                  selectedFile === path ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground'
                 }`}
                 onClick={() => onFileSelect?.(path)}
               >
                 {getFileIcon(path)}
-                <span className="flex-1 text-sm truncate" title={path}>
+                <span className="flex-1 text-sm truncate font-mono" title={path}>
                   {path}
                 </span>
                 
@@ -178,8 +178,8 @@ export function FileExplorer({
             {files.length === 0 && (
               <div className="text-center text-muted-foreground py-8">
                 <File className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No files yet</p>
-                <p className="text-sm">Ask the AI to create files for your project</p>
+                <p className="text-sidebar-foreground">No files yet</p>
+                <p className="text-sm text-muted-foreground">Ask the AI to create files for your project</p>
               </div>
             )}
           </div>

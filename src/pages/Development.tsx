@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { ChatInterface } from '@/components/ChatInterface';
 import { ProjectPreview } from '@/components/ProjectPreview';
@@ -7,12 +7,20 @@ import { CodeEditor } from '@/components/CodeEditor';
 import { useProjectManager } from '@/hooks/useProjectManager';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function Development() {
   const projectManager = useProjectManager();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   const currentProject = projectManager.getCurrentProject();
+  const allProjects = projectManager.getAllProjects();
+  
+  // Force refresh when project changes
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, [currentProject]);
   const selectedFileData = selectedFile && currentProject?.files[selectedFile] 
     ? currentProject.files[selectedFile] 
     : null;
@@ -40,16 +48,38 @@ export function Development() {
         path,
         content
       });
+      setRefreshKey(prev => prev + 1); // Force refresh
     }
   };
 
   return (
     <Layout>
       <div className="h-full flex flex-col">
+        {/* Project Selector Header */}
+        <div className="p-4 border-b border-border bg-card">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">Development</h2>
+            <div className="w-64">
+              <Select value={projectManager.currentProject || ""} onValueChange={projectManager.setCurrentProject}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left Panel - Chat */}
           <ResizablePanel defaultSize={40} minSize={30}>
-            <ChatInterface />
+            <ChatInterface key={refreshKey} />
           </ResizablePanel>
           
           <ResizableHandle />
@@ -60,7 +90,7 @@ export function Development() {
               {/* Top - Preview */}
               <ResizablePanel defaultSize={50} minSize={30}>
                 <div className="h-full p-4">
-                  <ProjectPreview project={currentProject} />
+                  <ProjectPreview key={refreshKey} project={currentProject} />
                 </div>
               </ResizablePanel>
               
@@ -68,15 +98,16 @@ export function Development() {
               
               {/* Bottom - Files and Editor */}
               <ResizablePanel defaultSize={50} minSize={30}>
-                <div className="h-full p-4">
+                <div className="h-full p-4 bg-sidebar">
                   <Tabs defaultValue="files" className="h-full flex flex-col">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="files">File Explorer</TabsTrigger>
-                      <TabsTrigger value="editor">Code Editor</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-2 bg-sidebar-accent">
+                      <TabsTrigger value="files" className="text-sidebar-foreground">File Explorer</TabsTrigger>
+                      <TabsTrigger value="editor" className="text-sidebar-foreground">Code Editor</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="files" className="flex-1 mt-4">
                       <FileExplorer
+                        key={refreshKey}
                         project={currentProject}
                         onFileSelect={handleFileSelect}
                         onFileDelete={handleFileDelete}
@@ -86,6 +117,7 @@ export function Development() {
                     
                     <TabsContent value="editor" className="flex-1 mt-4">
                       <CodeEditor
+                        key={refreshKey}
                         file={selectedFileData}
                         onSave={handleFileSave}
                       />

@@ -58,13 +58,13 @@ export function CodeEditor({ file, onSave, readOnly = false }: CodeEditorProps) 
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
+    <Card className="h-full flex flex-col bg-code-bg border-code-border">
+      <CardHeader className="pb-3 bg-code-bg border-b border-code-border">
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Code className="w-5 h-5" />
-            {file.path}
-            {hasChanges && <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded">Modified</span>}
+            <Code className="w-5 h-5 text-foreground" />
+            <span className="font-mono text-foreground">{file.path}</span>
+            {hasChanges && <span className="text-xs bg-warning text-black px-2 py-1 rounded">Modified</span>}
           </span>
           
           <div className="flex items-center gap-2">
@@ -114,7 +114,7 @@ export function CodeEditor({ file, onSave, readOnly = false }: CodeEditorProps) 
           <Textarea
             value={content}
             onChange={(e) => handleContentChange(e.target.value)}
-            className="flex-1 font-mono text-sm resize-none border-0 p-4"
+            className="flex-1 font-mono text-sm resize-none border-0 p-4 bg-code-bg text-foreground"
             placeholder="Enter your code here..."
             readOnly={readOnly}
           />
