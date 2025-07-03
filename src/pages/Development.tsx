@@ -8,6 +8,8 @@ import { useProjectManager } from '@/hooks/useProjectManager';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 export function Development() {
   const projectManager = useProjectManager();
@@ -59,19 +61,35 @@ export function Development() {
         <div className="p-4 border-b border-border bg-card">
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-semibold">Development</h2>
-            <div className="w-64">
-              <Select value={projectManager.currentProject || ""} onValueChange={projectManager.setCurrentProject}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allProjects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-2">
+              <div className="w-64">
+                <Select value={projectManager.currentProject || ""} onValueChange={projectManager.setCurrentProject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allProjects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const name = prompt('Enter project name:');
+                  if (name?.trim()) {
+                    projectManager.createProject(name.trim());
+                  }
+                }}
+                className="h-10 w-10 shrink-0"
+                title="Create new project"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>
