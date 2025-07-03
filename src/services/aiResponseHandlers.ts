@@ -14,63 +14,41 @@ export const handleGeminiResponse = async (
   let toolResults: string[] = [];
 
   const result = await aiConfig.instance.generateContentStream(prompt);
-  
+
+  // Buffer the entire response
   for await (const chunk of result.stream) {
     const chunkText = chunk.text();
     assistantResponse += chunkText;
-    
-    setMessages(prev => prev.map(msg => 
-      msg.id === assistantMessageId 
-        ? { ...msg, content: assistantResponse }
-        : msg
-    ));
-    
-    await new Promise(resolve => setTimeout(resolve, 20));
   }
-  
-  // Check if response contains tool calls JSON - try different JSON patterns
-  if (assistantResponse.includes('"tool_calls"') || assistantResponse.includes('create_file')) {
+
+  // Check for tool calls in the buffered response
+  if (assistantResponse.includes('"tool_calls"')) {
     try {
-      let jsonStr = assistantResponse;
-      
-      // Try to extract JSON from markdown code blocks first
-      const markdownJsonMatch = assistantResponse.match(/```json\s*([\s\S]*?)\s*```/);
-      if (markdownJsonMatch) {
-        jsonStr = markdownJsonMatch[1];
-      } else {
-        // Try to find JSON object in the response
-        const jsonMatch = assistantResponse.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          jsonStr = jsonMatch[0];
-        }
-      }
-      
-      console.log('Attempting to parse JSON:', jsonStr);
-      const parsed = JSON.parse(jsonStr);
-      
-      if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
-        console.log('Found tool calls:', parsed.tool_calls);
-        toolCalls = parsed.tool_calls;
-        assistantResponse = parsed.content || "I've created your files!";
-        
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantMessageId 
-            ? { ...msg, content: assistantResponse }
-            : msg
-        ));
-        
-        for (const toolCall of toolCalls) {
-          console.log('Executing tool call:', toolCall);
-          const result = await executeToolCall(toolCall, projectManager, null);
-          console.log('Tool execution result:', result);
-          toolResults.push(result);
+      const jsonMatch = assistantResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
+          toolCalls = parsed.tool_calls;
+          assistantResponse = parsed.content || "I have created the files for your project.";
+
+          for (const toolCall of toolCalls) {
+            const result = await executeToolCall(toolCall, projectManager, null);
+            toolResults.push(result);
+          }
         }
       }
     } catch (error) {
-      console.error('JSON parsing error:', error);
-      console.log('Failed to parse response:', assistantResponse);
+      console.error('Error parsing or executing tool calls:', error);
+      assistantResponse = "I tried to create the files, but something went wrong. Please check the console for errors.";
     }
   }
+
+  // Update the message with the final content
+  setMessages(prev => prev.map(msg =>
+    msg.id === assistantMessageId
+      ? { ...msg, content: assistantResponse, toolCalls, toolResults }
+      : msg
+  ));
 
   return { content: assistantResponse, toolCalls, toolResults };
 };
