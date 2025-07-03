@@ -10,13 +10,13 @@ interface UserRecord {
 
 export const createDefaultAdmin = () => {
   const users = getUsers();
-  const adminExists = users.find(u => u.username === 'admin');
+  const adminExists = users.find(u => u.username === 'seedk');
   
   if (!adminExists) {
     const admin: UserRecord = {
-      id: 'admin-001',
-      username: 'admin',
-      password: 'admin123',
+      id: '1',
+      username: 'seedk',
+      password: '1234',
       settings: JSON.stringify({
         aiProvider: 'gemini',
         geminiApiKey: 'AIzaSyBcRopXDUOEYmODdhYrGhW7g3uXOZYZt3M',
@@ -31,8 +31,24 @@ export const createDefaultAdmin = () => {
     
     users.push(admin);
     saveUsers(users);
-    console.log('Default admin user created: admin/admin123');
+    console.log('Default admin user created: seedk/1234');
+    
+    // Also create the actual CSV file for download
+    createCSVFile();
   }
+};
+
+export const createCSVFile = () => {
+  const csvContent = exportToCSV();
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'users.csv');
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 export const getUsers = (): UserRecord[] => {

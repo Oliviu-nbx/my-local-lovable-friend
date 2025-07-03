@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus, Users, LogIn, LogOut } from "lucide-react";
+import { Trash2, Plus, Users, LogIn, LogOut, Download } from "lucide-react";
+import { exportToCSV, createCSVFile } from "@/utils/csvUserStorage";
 
 interface User {
   id: string;
@@ -247,7 +248,7 @@ export function UserManager({ onUserLogin }: UserManagerProps) {
       </Card>
 
       {/* Admin Panel (only show when admin is logged in) */}
-      {currentUser?.username === 'admin' && (
+      {currentUser?.username === 'seedk' && (
         <Card>
           <CardHeader>
             <CardTitle>User Management</CardTitle>
@@ -258,10 +259,16 @@ export function UserManager({ onUserLogin }: UserManagerProps) {
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Users ({users.length})</h3>
-              <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Create User
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={createCSVFile} variant="outline" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Download CSV
+                </Button>
+                <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Create User
+                </Button>
+              </div>
             </div>
             
             <div className="grid gap-3">
@@ -272,7 +279,7 @@ export function UserManager({ onUserLogin }: UserManagerProps) {
                     <p className="text-sm text-muted-foreground">ID: {user.id}</p>
                   </div>
                   <div className="flex gap-2">
-                    {user.username !== 'admin' && (
+                    {user.username !== 'seedk' && (
                       <Button
                         onClick={() => deleteUser(user.id)}
                         variant="outline"
