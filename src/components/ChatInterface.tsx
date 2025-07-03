@@ -133,10 +133,11 @@ Available tools: create_file, update_file, delete_file, create_project. Always c
               // Execute each tool call
               for (const toolCall of toolCalls) {
                 try {
-                  // More robust argument parsing
+                  // Safer argument parsing for escaped content
                   let args;
                   if (typeof toolCall.function.arguments === 'string') {
-                    args = JSON.parse(toolCall.function.arguments);
+                    // Use eval in a safe context for complex escaped JSON
+                    args = Function('"use strict"; return (' + toolCall.function.arguments + ')')();
                   } else {
                     args = toolCall.function.arguments;
                   }
