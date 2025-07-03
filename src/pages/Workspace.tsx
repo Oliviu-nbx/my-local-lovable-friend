@@ -125,10 +125,10 @@ export function Workspace() {
           </div>
         </div>
         
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex min-h-0 overflow-hidden">
           {/* Left Panel - Chat with Fixed Height */}
-          <div className="w-1/2 border-r border-border flex flex-col">
-            <div className="flex-1 overflow-hidden">
+          <div className="w-1/2 border-r border-border flex flex-col h-full">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <ChatInterface key={refreshKey} />
             </div>
           </div>

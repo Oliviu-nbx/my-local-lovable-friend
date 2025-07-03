@@ -53,7 +53,7 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-chat-bg">
+    <div className="flex flex-col h-full bg-chat-bg overflow-hidden">
       {/* Chat Header */}
       <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-border bg-card">
         <div>

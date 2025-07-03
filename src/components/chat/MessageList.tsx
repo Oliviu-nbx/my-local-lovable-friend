@@ -52,7 +52,7 @@ export function MessageList({
   }, [messages, isLoading, isStreaming]);
 
   return (
-    <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
+    <ScrollArea ref={scrollAreaRef} className="h-full p-4">
       <div className="space-y-4 max-w-4xl mx-auto">
         {messages.map((message) => (
           <MessageBubble
