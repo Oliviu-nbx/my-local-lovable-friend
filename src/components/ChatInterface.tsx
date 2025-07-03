@@ -138,8 +138,14 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
               // Execute each tool call
               for (const toolCall of toolCalls) {
                 try {
-                  // Simple direct execution
-                  const args = toolCall.function.arguments;
+                  // Parse arguments if they're a string
+                  let args;
+                  if (typeof toolCall.function.arguments === 'string') {
+                    args = JSON.parse(toolCall.function.arguments);
+                  } else {
+                    args = toolCall.function.arguments;
+                  }
+                  
                   console.log('Executing tool:', toolCall.function.name, args);
                   
                   if (toolCall.function.name === 'create_file') {
@@ -149,7 +155,7 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
                     }
                     
                     // Create the file
-                    if (projectManager.currentProject) {
+                    if (projectManager.currentProject && args.path && args.content !== undefined) {
                       projectManager.executeFileOperation(projectManager.currentProject, {
                         type: 'create',
                         path: args.path,
