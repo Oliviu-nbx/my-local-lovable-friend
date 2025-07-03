@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, User, Bot, Copy, RotateCcw, Wrench } from "lucide-react";
+import { Send, User, Bot, Copy, RotateCcw, Wrench, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useProjectManager } from "@/hooks/useProjectManager";
 import { availableTools, executeToolCall, formatToolsForAI } from "@/services/aiTools";
@@ -23,6 +24,9 @@ export function ChatInterface() {
   const projectManager = useProjectManager();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showThinking, setShowThinking] = useState(false);
+  const [thinkingSteps, setThinkingSteps] = useState<string[]>([]);
+  const [progress, setProgress] = useState(0);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const currentProject = projectManager.getCurrentProject();
@@ -94,6 +98,26 @@ export function ChatInterface() {
     scrollToBottom();
   }, [messages]);
 
+  const simulateThinking = async () => {
+    const steps = [
+      "Analyzing your request...",
+      "Understanding the context...",
+      "Planning the implementation...",
+      "Generating code structure...",
+      "Optimizing the solution...",
+      "Finalizing the response..."
+    ];
+    
+    setThinkingSteps([]);
+    setProgress(0);
+    
+    for (let i = 0; i < steps.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 700));
+      setThinkingSteps(prev => [...prev, steps[i]]);
+      setProgress((i + 1) / steps.length * 100);
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -107,6 +131,10 @@ export function ChatInterface() {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setShowThinking(false);
+    
+    // Start thinking simulation
+    const thinkingPromise = simulateThinking();
 
     try {
       const aiConfig = getAIInstance();
@@ -406,12 +434,48 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
               <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center shadow-glow">
                 <Bot className="w-4 h-4 text-primary-foreground" />
               </div>
-              <Card className="bg-card border-code-border p-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                  <span className="text-sm text-muted-foreground ml-2">Thinking...</span>
+              <Card className="bg-card border-code-border p-4 min-w-[300px]">
+                <div className="space-y-3">
+                  {/* Header with thinking dots and toggle button */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                      <span className="text-sm text-muted-foreground ml-2">Thinking...</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowThinking(!showThinking)}
+                      className="h-6 w-6 p-0"
+                      title={showThinking ? "Hide thinking process" : "Show thinking process"}
+                    >
+                      {showThinking ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    </Button>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div className="space-y-2">
+                    <Progress value={progress} className="h-2" />
+                    <div className="text-xs text-muted-foreground text-right">
+                      {Math.round(progress)}% complete
+                    </div>
+                  </div>
+                  
+                  {/* Thinking steps (only shown when toggled) */}
+                  {showThinking && thinkingSteps.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border/20">
+                      <div className="text-xs text-muted-foreground mb-2">AI Thinking Process:</div>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {thinkingSteps.map((step, idx) => (
+                          <div key={idx} className="text-xs bg-muted/20 rounded p-2 animate-fade-in">
+                            {step}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Card>
             </div>
