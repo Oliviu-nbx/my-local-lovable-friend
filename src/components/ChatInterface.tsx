@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, User, Bot, Copy, RotateCcw, Wrench, Eye, EyeOff } from "lucide-react";
+import { Send, User, Bot, Copy, RotateCcw, Wrench, Eye, EyeOff, Settings, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useProjectManager } from "@/hooks/useProjectManager";
 import { availableTools, executeToolCall, formatToolsForAI } from "@/services/aiTools";
 import { ToolCall } from "@/types/tools";
+import { ProjectConfigDialog } from "@/components/ProjectConfigDialog";
+import { CloneWebsiteDialog } from "@/components/CloneWebsiteDialog";
 
 interface Message {
   id: string;
@@ -27,6 +29,9 @@ export function ChatInterface() {
   const [showThinking, setShowThinking] = useState(false);
   const [thinkingSteps, setThinkingSteps] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
+  const [showProjectConfig, setShowProjectConfig] = useState(false);
+  const [showCloneDialog, setShowCloneDialog] = useState(false);
+  const [projectConfig, setProjectConfig] = useState<any>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const currentProject = projectManager.getCurrentProject();
@@ -164,17 +169,26 @@ When users ask you to create websites or files, respond with JSON using this EXA
 
 IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simple without complex escaping.`;
       
-      // Create context from recent messages
+      // Create context from recent messages and project config
       const context = messages.slice(-10).map(msg => 
         `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
       ).join('\n');
+      
+      const configContext = projectConfig ? `
+Project Configuration:
+- Business Type: ${projectConfig.businessType}
+- Website Name: ${projectConfig.websiteName}
+- Description: ${projectConfig.description}
+- Preferred Colors: ${projectConfig.preferredColors}
+- Reference Images: ${projectConfig.images?.length || 0} uploaded
+` : '';
       
       let assistantResponse = '';
       let toolCalls: ToolCall[] = [];
       let toolResults: string[] = [];
 
       if (aiConfig.type === 'gemini') {
-        const prompt = `${enhancedSystemPrompt}\n\nConversation history:\n${context}\n\nUser: ${userMessage.content}\n\nAssistant:`;
+        const prompt = `${enhancedSystemPrompt}\n\n${configContext}\n\nConversation history:\n${context}\n\nUser: ${userMessage.content}\n\nAssistant:`;
         const result = await aiConfig.instance.generateContent(prompt);
         const response = await result.response;
         const responseText = response.text();
@@ -245,62 +259,11 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
           assistantResponse = responseText;
         }
       } else {
-        // OpenAI-compatible API (LM Studio)
-        const response = await fetch(`${aiConfig.endpoint}/v1/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(aiConfig.apiKey && { 'Authorization': `Bearer ${aiConfig.apiKey}` })
-          },
-          body: JSON.stringify({
-            model: localStorage.getItem('local-model-name') || 'local-model',
-            messages: [
-              { role: 'system', content: enhancedSystemPrompt },
-              ...messages.slice(-10).map(msg => ({
-                role: msg.role === 'assistant' ? 'assistant' : 'user',
-                content: msg.content
-              })),
-              { role: 'user', content: userMessage.content }
-            ],
-            temperature: parseFloat(localStorage.getItem('temperature') || '0.7'),
-            max_tokens: parseInt(localStorage.getItem('max-tokens') || '2048'),
-            tools: availableTools,
-            tool_choice: 'auto'
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        const choice = data.choices[0];
-        
-        assistantResponse = choice.message?.content || 'I\'m working on your request...';
-        
-        if (choice.message?.tool_calls) {
-          toolCalls = choice.message.tool_calls;
-          
-          // Execute tool calls
-          for (const toolCall of toolCalls) {
-            const args = JSON.parse(toolCall.function.arguments);
-            const result = executeToolCall(
-              toolCall.function.name,
-              args,
-              (operation) => {
-                if (projectManager.currentProject) {
-                  projectManager.executeFileOperation(projectManager.currentProject, operation);
-                } else {
-                  // Create a new project if none exists
-                  const projectId = projectManager.createProject('New Project');
-                  projectManager.executeFileOperation(projectId, operation);
-                }
-              },
-              (name) => projectManager.createProject(name)
-            );
-            toolResults.push(result);
-          }
-        }
+        // For local LLMs, try to parse tool calls from response text
+        const localResponse = await handleLocalLLMResponse(aiConfig, enhancedSystemPrompt, context, configContext, userMessage.content);
+        assistantResponse = localResponse.content;
+        toolCalls = localResponse.toolCalls;
+        toolResults = localResponse.toolResults;
       }
       
       const assistantMessage: Message = {
@@ -343,6 +306,147 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
     }]);
   };
 
+  const handleLocalLLMResponse = async (aiConfig: any, systemPrompt: string, context: string, configContext: string, userContent: string) => {
+    try {
+      const response = await fetch(`${aiConfig.endpoint}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(aiConfig.apiKey && { 'Authorization': `Bearer ${aiConfig.apiKey}` })
+        },
+        body: JSON.stringify({
+          model: localStorage.getItem('local-model-name') || 'local-model',
+          messages: [
+            { role: 'system', content: systemPrompt + configContext },
+            ...messages.slice(-10).map(msg => ({
+              role: msg.role === 'assistant' ? 'assistant' : 'user',
+              content: msg.content
+            })),
+            { role: 'user', content: userContent }
+          ],
+          temperature: parseFloat(localStorage.getItem('temperature') || '0.7'),
+          max_tokens: parseInt(localStorage.getItem('max-tokens') || '2048'),
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const choice = data.choices[0];
+      const responseText = choice.message?.content || 'I\'m working on your request...';
+      
+      // Try to parse tool calls from the response
+      let toolCalls: ToolCall[] = [];
+      let toolResults: string[] = [];
+      let content = responseText;
+
+      // Check if response contains JSON tool calls
+      if (responseText.includes('"tool_calls"') || responseText.includes('create_file')) {
+        try {
+          let jsonStr = responseText;
+          const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
+          if (jsonMatch) {
+            jsonStr = jsonMatch[1];
+          }
+          
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
+            toolCalls = parsed.tool_calls;
+            content = parsed.content || "I've created your files!";
+            
+            // Execute tool calls
+            for (const toolCall of toolCalls) {
+              try {
+                let args;
+                if (typeof toolCall.function.arguments === 'string') {
+                  args = JSON.parse(toolCall.function.arguments);
+                } else {
+                  args = toolCall.function.arguments;
+                }
+                
+                if (toolCall.function.name === 'create_file') {
+                  let projectId = projectManager.currentProject;
+                  if (!projectId) {
+                    projectId = projectManager.createProject(projectConfig?.websiteName || 'AI Generated Project');
+                  }
+                  
+                  if (projectId && args.path && args.content !== undefined) {
+                    projectManager.executeFileOperation(projectId, {
+                      type: 'create',
+                      path: args.path,
+                      content: args.content
+                    });
+                    toolResults.push(`✅ Created file: ${args.path}`);
+                  }
+                }
+              } catch (error) {
+                console.error('Tool execution error:', error);
+                toolResults.push(`❌ Error: ${error}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('JSON parsing error:', error);
+        }
+      }
+
+      return { content, toolCalls, toolResults };
+    } catch (error) {
+      console.error('Local LLM error:', error);
+      return { 
+        content: 'Error communicating with local AI. Please check your configuration.',
+        toolCalls: [],
+        toolResults: []
+      };
+    }
+  };
+
+  const handleProjectConfigSubmit = (config: any) => {
+    setProjectConfig(config);
+    localStorage.setItem(`project-config-${currentProjectId}`, JSON.stringify(config));
+    toast({
+      title: "Configuration saved",
+      description: "Project configuration has been set. The AI will use this information for better results."
+    });
+  };
+
+  const handleCloneWebsite = (prompt: string, url: string) => {
+    const provider = localStorage.getItem('ai-provider') || 'gemini';
+    
+    if (provider === 'gemini') {
+      // Auto-send prompt for Gemini
+      setInput(prompt);
+      setTimeout(() => sendMessage(), 100);
+    } else {
+      // Show prompt for local AI
+      const cloneMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `I've analyzed the website at ${url} and generated this prompt for you. Would you like me to use this to create a similar website?\n\n---\n\n${prompt}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, cloneMessage]);
+    }
+  };
+
+  // Load project config
+  useEffect(() => {
+    if (currentProjectId) {
+      const saved = localStorage.getItem(`project-config-${currentProjectId}`);
+      if (saved) {
+        try {
+          setProjectConfig(JSON.parse(saved));
+        } catch (error) {
+          console.error('Failed to load project config:', error);
+        }
+      } else {
+        setProjectConfig(null);
+      }
+    }
+  }, [currentProjectId]);
+
   return (
     <div className="flex flex-col h-full bg-chat-bg">
       {/* Chat Header */}
@@ -353,15 +457,35 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
             {currentProject ? `Project: ${currentProject.name}` : 'No project selected'}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={clearChat}
-          className="gap-2"
-        >
-          <RotateCcw className="w-4 h-4" />
-          Clear Chat
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowProjectConfig(true)}
+            className="gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Configure
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCloneDialog(true)}
+            className="gap-2"
+          >
+            <Globe className="w-4 h-4" />
+            Clone Website
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearChat}
+            className="gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Clear Chat
+          </Button>
+        </div>
       </div>
 
       {/* Messages Area */}
@@ -512,6 +636,18 @@ IMPORTANT: Put the arguments as an object, NOT a string. Keep HTML content simpl
           </p>
         </div>
       </div>
+      
+      <ProjectConfigDialog
+        open={showProjectConfig}
+        onOpenChange={setShowProjectConfig}
+        onSubmit={handleProjectConfigSubmit}
+      />
+      
+      <CloneWebsiteDialog
+        open={showCloneDialog}
+        onOpenChange={setShowCloneDialog}
+        onPromptGenerated={handleCloneWebsite}
+      />
     </div>
   );
 }
