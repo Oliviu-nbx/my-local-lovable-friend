@@ -46,7 +46,7 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="bg-background">
+      <main className="bg-background pt-0">
         {children}
       </main>
 

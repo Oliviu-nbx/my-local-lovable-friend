@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Save, TestTube, Cpu, Globe, Shield, Palette } from "lucide-react";
+import { Save, TestTube, Cpu, Globe, Shield, Palette, Settings as SettingsIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Layout } from "@/components/Layout";
 import { useToast } from "@/hooks/use-toast";
+import { AdminPanel } from "@/components/AdminPanel";
 
 export function Settings() {
   const [settings, setSettings] = useState({
@@ -26,6 +27,21 @@ export function Settings() {
   });
 
   const { toast } = useToast();
+
+  // Check if current user is admin (id: 1)
+  const isAdmin = () => {
+    try {
+      const users = localStorage.getItem('users-csv');
+      if (users) {
+        const userList = JSON.parse(users);
+        const currentUser = userList.find((u: any) => u.id === '1');
+        return !!currentUser;
+      }
+    } catch (error) {
+      console.error('Failed to check admin status:', error);
+    }
+    return false;
+  };
 
   const handleSave = () => {
     // Save to localStorage
@@ -330,6 +346,24 @@ export function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Admin Panel - Only visible to admin */}
+        {isAdmin() && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <SettingsIcon className="w-5 h-5" />
+                Admin Panel
+              </CardTitle>
+              <CardDescription>
+                Administrative controls and user management
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminPanel />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Save Button */}
         <div className="flex justify-end">

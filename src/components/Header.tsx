@@ -103,8 +103,8 @@ export function Header() {
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center space-x-1 flex-1">
-          {navigationItems.slice(0, 4).map((item) => (
+        <nav className="hidden md:flex items-center space-x-1 flex-1">
+          {navigationItems.slice(0, 5).map((item) => (
             <NavLink
               key={item.title}
               to={item.url}

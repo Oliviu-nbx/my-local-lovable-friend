@@ -1,13 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectState } from '@/types/tools';
-import { ExternalLink, Code, FileText } from 'lucide-react';
+import { ExternalLink, Code, FileText, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 interface ProjectPreviewProps {
   project: ProjectState | null;
 }
 
 export function ProjectPreview({ project }: ProjectPreviewProps) {
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
   if (!project) {
     return (
       <Card className="h-full">
@@ -35,17 +42,30 @@ export function ProjectPreview({ project }: ProjectPreviewProps) {
             <FileText className="w-5 h-5" />
             {project.name}
           </span>
-          {project.previewUrl && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open(project.previewUrl, '_blank')}
-              className="gap-2"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Open
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {hasHtmlFile && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                className="gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </Button>
+            )}
+            {project.previewUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(project.previewUrl, '_blank')}
+                className="gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open
+              </Button>
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
       
@@ -53,6 +73,7 @@ export function ProjectPreview({ project }: ProjectPreviewProps) {
         {hasHtmlFile && project.previewUrl ? (
           <div className="flex-1 border rounded-md overflow-hidden">
             <iframe
+              key={refreshKey}
               src={project.previewUrl}
               className="w-full h-full"
               title={`Preview of ${project.name}`}
