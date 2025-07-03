@@ -20,6 +20,14 @@ export interface ProjectFile {
   type: 'file' | 'directory';
 }
 
+export interface DirectoryNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: DirectoryNode[];
+  file?: ProjectFile;
+}
+
 export interface ProjectState {
   name: string;
   files: Record<string, ProjectFile>;

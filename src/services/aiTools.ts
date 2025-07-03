@@ -5,13 +5,13 @@ export const availableTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'create_file',
-      description: 'Create a new file with specified content',
+      description: 'Create a new file with specified content. Supports nested paths - directories will be created automatically.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description: 'The file path (e.g., src/App.js, index.html)'
+            description: 'The file path including directories (e.g., src/components/App.jsx, styles/main.css, assets/images/logo.png)'
           },
           content: {
             type: 'string',
@@ -63,6 +63,23 @@ export const availableTools: ToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'create_directory',
+      description: 'Create a new directory at the specified path',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            description: 'The directory path to create (e.g., src/components, assets/images, styles)'
+          }
+        },
+        required: ['path']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'create_project',
       description: 'Create a new project with a specific name',
       parameters: {
@@ -88,7 +105,8 @@ export function executeToolCall(
   toolName: string,
   args: any,
   onFileOperation: (operation: FileOperation) => void,
-  onProjectCreate: (name: string) => string
+  onProjectCreate: (name: string) => string,
+  onDirectoryCreate?: (path: string) => void
 ): string {
   console.log('Executing tool:', toolName, 'with args:', args);
   
@@ -125,6 +143,17 @@ export function executeToolCall(
           path: args.path
         });
         return `✅ Deleted file: ${args.path}`;
+
+      case 'create_directory':
+        if (!args.path) {
+          return `Error: Missing path for create_directory`;
+        }
+        if (onDirectoryCreate) {
+          onDirectoryCreate(args.path);
+          return `✅ Created directory: ${args.path}`;
+        } else {
+          return `Error: Directory creation not supported in this context`;
+        }
 
       case 'create_project':
         if (!args.name) {
@@ -164,6 +193,13 @@ To use a tool, respond with a JSON object in this format:
   ],
   "content": "Your explanation of what you're doing"
 }
+
+IMPORTANT: When creating files in subdirectories (e.g., src/components/App.jsx), the parent directories will be created automatically. Use proper project structure with organized directories:
+- src/ for source code
+- assets/ for images and media
+- styles/ for CSS files
+- components/ for reusable components
+- utils/ for utility functions
 
 Always create complete, working files. For websites, start with an index.html file and include all necessary CSS and JavaScript inline or in separate files.`;
 }

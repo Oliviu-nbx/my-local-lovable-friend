@@ -55,6 +55,13 @@ export function Workspace() {
     }
   };
 
+  const handleCreateDirectory = (path: string) => {
+    if (projectManager.currentProject) {
+      projectManager.createDirectory(projectManager.currentProject, path);
+      setRefreshKey(prev => prev + 1); // Force refresh
+    }
+  };
+
   return (
     <Layout>
       <div className="h-full flex flex-col">
@@ -130,6 +137,7 @@ export function Workspace() {
                         project={currentProject}
                         onFileSelect={handleFileSelect}
                         onFileDelete={handleFileDelete}
+                        onCreateDirectory={handleCreateDirectory}
                         selectedFile={selectedFile}
                       />
                     </TabsContent>

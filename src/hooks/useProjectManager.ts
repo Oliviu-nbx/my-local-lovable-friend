@@ -97,6 +97,25 @@ export function useProjectManager() {
         case 'create':
         case 'update':
           if (operation.content !== undefined) {
+            // Create directories for nested paths
+            const pathParts = operation.path.split('/');
+            if (pathParts.length > 1) {
+              // Create parent directories
+              for (let i = 1; i < pathParts.length; i++) {
+                const dirPath = pathParts.slice(0, i).join('/');
+                if (dirPath && !updatedFiles[dirPath]) {
+                  updatedFiles[dirPath] = {
+                    path: dirPath,
+                    content: '',
+                    lastModified: new Date(),
+                    type: 'directory'
+                  };
+                  console.log('Created directory:', dirPath);
+                }
+              }
+            }
+            
+            // Create/update the file
             updatedFiles[operation.path] = {
               path: operation.path,
               content: operation.content,
@@ -107,8 +126,26 @@ export function useProjectManager() {
           }
           break;
         case 'delete':
+          // Delete file and any empty parent directories
           delete updatedFiles[operation.path];
           console.log('Deleted file:', operation.path);
+          
+          // Check if we should clean up empty directories
+          const pathParts = operation.path.split('/');
+          if (pathParts.length > 1) {
+            for (let i = pathParts.length - 2; i >= 1; i--) {
+              const dirPath = pathParts.slice(0, i).join('/');
+              const hasChildren = Object.keys(updatedFiles).some(path => 
+                path !== dirPath && path.startsWith(dirPath + '/')
+              );
+              if (!hasChildren && updatedFiles[dirPath]?.type === 'directory') {
+                delete updatedFiles[dirPath];
+                console.log('Deleted empty directory:', dirPath);
+              } else {
+                break; // Stop if directory is not empty
+              }
+            }
+          }
           break;
       }
 
@@ -134,6 +171,43 @@ export function useProjectManager() {
       return {
         ...prev,
         [projectId]: updatedProject
+      };
+    });
+  }, []);
+
+  const createDirectory = useCallback((projectId: string, dirPath: string) => {
+    console.log('Creating directory:', dirPath, 'in project:', projectId);
+    
+    setProjects(prev => {
+      const project = prev[projectId];
+      if (!project) {
+        console.error('Project not found:', projectId);
+        return prev;
+      }
+
+      const updatedFiles = { ...project.files };
+      
+      // Create all parent directories if they don't exist
+      const pathParts = dirPath.split('/').filter(part => part.length > 0);
+      for (let i = 1; i <= pathParts.length; i++) {
+        const currentPath = pathParts.slice(0, i).join('/');
+        if (!updatedFiles[currentPath]) {
+          updatedFiles[currentPath] = {
+            path: currentPath,
+            content: '',
+            lastModified: new Date(),
+            type: 'directory'
+          };
+          console.log('Created directory:', currentPath);
+        }
+      }
+
+      return {
+        ...prev,
+        [projectId]: {
+          ...project,
+          files: updatedFiles
+        }
       };
     });
   }, []);
@@ -170,6 +244,7 @@ export function useProjectManager() {
     currentProject,
     createProject,
     executeFileOperation,
+    createDirectory,
     getProject,
     getCurrentProject,
     setCurrentProject,
