@@ -2,7 +2,7 @@ import { Copy, User, Bot, Wrench } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Message } from "@/hooks/useAI";
+import { Message } from "@/types/ai";
 
 interface MessageBubbleProps {
   message: Message;

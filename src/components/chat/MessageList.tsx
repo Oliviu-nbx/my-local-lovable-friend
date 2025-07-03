@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { MessageBubble } from "./MessageBubble";
-import { Message } from "@/hooks/useAI";
+import { Message } from "@/types/ai";
 
 interface MessageListProps {
   messages: Message[];

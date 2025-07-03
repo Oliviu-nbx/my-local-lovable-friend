@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useProjectManager } from "@/hooks/useProjectManager";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { useAI, Message } from "@/hooks/useAI";
+import { useAI } from "@/hooks/useAI";
+import { Message } from "@/types/ai";
 import { useToast } from "@/hooks/use-toast";
 import { ToolCall } from "@/types/tools";
 
