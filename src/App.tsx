@@ -11,6 +11,7 @@ import Model from "./pages/Model";
 import Settings from "./pages/Settings";
 import Development from "./pages/Development";
 import Projects from "./pages/Projects";
+import Workspace from "./pages/Workspace";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/projects" element={<Projects />} />
+          <Route path="/workspace" element={<Workspace />} />
           <Route path="/files" element={<Files />} />
           <Route path="/editor" element={<Editor />} />
           <Route path="/terminal" element={<Terminal />} />
