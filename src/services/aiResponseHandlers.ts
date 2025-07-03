@@ -28,17 +28,28 @@ export const handleGeminiResponse = async (
     await new Promise(resolve => setTimeout(resolve, 20));
   }
   
-  // Check if response contains tool calls JSON
-  if (assistantResponse.includes('"tool_calls"')) {
+  // Check if response contains tool calls JSON - try different JSON patterns
+  if (assistantResponse.includes('"tool_calls"') || assistantResponse.includes('create_file')) {
     try {
       let jsonStr = assistantResponse;
-      const jsonMatch = assistantResponse.match(/```json\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
-        jsonStr = jsonMatch[1];
+      
+      // Try to extract JSON from markdown code blocks first
+      const markdownJsonMatch = assistantResponse.match(/```json\s*([\s\S]*?)\s*```/);
+      if (markdownJsonMatch) {
+        jsonStr = markdownJsonMatch[1];
+      } else {
+        // Try to find JSON object in the response
+        const jsonMatch = assistantResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[0];
+        }
       }
       
+      console.log('Attempting to parse JSON:', jsonStr);
       const parsed = JSON.parse(jsonStr);
+      
       if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
+        console.log('Found tool calls:', parsed.tool_calls);
         toolCalls = parsed.tool_calls;
         assistantResponse = parsed.content || "I've created your files!";
         
@@ -49,12 +60,15 @@ export const handleGeminiResponse = async (
         ));
         
         for (const toolCall of toolCalls) {
+          console.log('Executing tool call:', toolCall);
           const result = await executeToolCall(toolCall, projectManager, null);
+          console.log('Tool execution result:', result);
           toolResults.push(result);
         }
       }
     } catch (error) {
       console.error('JSON parsing error:', error);
+      console.log('Failed to parse response:', assistantResponse);
     }
   }
 
@@ -144,23 +158,37 @@ export const handleLocalLLMResponse = async (
     if (assistantResponse.includes('"tool_calls"') || assistantResponse.includes('create_file')) {
       try {
         let jsonStr = assistantResponse;
-        const jsonMatch = assistantResponse.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonMatch) {
-          jsonStr = jsonMatch[1];
+        
+        // Try to extract JSON from markdown code blocks first
+        const markdownJsonMatch = assistantResponse.match(/```json\s*([\s\S]*?)\s*```/);
+        if (markdownJsonMatch) {
+          jsonStr = markdownJsonMatch[1];
+        } else {
+          // Try to find JSON object in the response
+          const jsonMatch = assistantResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            jsonStr = jsonMatch[0];
+          }
         }
         
+        console.log('Local LLM attempting to parse JSON:', jsonStr);
         const parsed = JSON.parse(jsonStr);
+        
         if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
+          console.log('Local LLM found tool calls:', parsed.tool_calls);
           toolCalls = parsed.tool_calls;
           content = parsed.content || "I've created your files!";
           
           for (const toolCall of toolCalls) {
+            console.log('Local LLM executing tool call:', toolCall);
             const result = await executeToolCall(toolCall, projectManager, null);
+            console.log('Local LLM tool execution result:', result);
             toolResults.push(result);
           }
         }
       } catch (error) {
-        console.error('JSON parsing error:', error);
+        console.error('Local LLM JSON parsing error:', error);
+        console.log('Local LLM failed to parse response:', assistantResponse);
       }
     }
 

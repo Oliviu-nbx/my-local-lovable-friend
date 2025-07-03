@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { Send } from "lucide-react";
+import { Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 interface ChatInputProps {
   onSendMessage: (content: string) => void;
+  onStopGeneration?: () => void;
   isLoading: boolean;
   isStreaming: boolean;
 }
 
-export function ChatInput({ onSendMessage, isLoading, isStreaming }: ChatInputProps) {
+export function ChatInput({ onSendMessage, onStopGeneration, isLoading, isStreaming }: ChatInputProps) {
   const [input, setInput] = useState('');
 
   const handleSend = () => {
@@ -37,21 +38,23 @@ export function ChatInput({ onSendMessage, isLoading, isStreaming }: ChatInputPr
             className="min-h-[60px] resize-none bg-background border-input"
             onKeyDown={handleKeyDown}
           />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading || isStreaming}
-            className="self-end bg-gradient-primary hover:shadow-glow transition-spring"
-          >
-            {isStreaming ? (
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
-                <div className="w-2 h-2 rounded-full bg-white animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 rounded-full bg-white animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-              </div>
-            ) : (
+          {isStreaming ? (
+            <Button
+              onClick={onStopGeneration}
+              variant="destructive"
+              className="self-end"
+            >
+              <Square className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              className="self-end bg-gradient-primary hover:shadow-glow transition-spring"
+            >
               <Send className="w-4 h-4" />
-            )}
-          </Button>
+            </Button>
+          )}
         </div>
         <p className="text-xs text-muted-foreground mt-2">
           Press Enter to send, Shift+Enter for new line

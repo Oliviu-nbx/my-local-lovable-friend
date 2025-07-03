@@ -24,6 +24,7 @@ export function ChatInterface() {
     thinkingSteps,
     progress,
     sendMessage,
+    stopGeneration,
     clearMessages,
     loadMessages,
     saveMessages
@@ -54,7 +55,7 @@ export function ChatInterface() {
   return (
     <div className="flex flex-col h-full bg-chat-bg">
       {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+      <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-border bg-card">
         <div>
           <h2 className="text-lg font-semibold text-foreground">AI Chat</h2>
           <p className="text-sm text-muted-foreground">
@@ -74,24 +75,29 @@ export function ChatInterface() {
         </div>
       </div>
 
-      {/* Messages Area */}
-      <MessageList
-        messages={messages}
-        isLoading={isLoading}
-        isStreaming={isStreaming}
-        currentStreamingMessageId={currentStreamingMessageId}
-        thinkingSteps={thinkingSteps}
-        progress={progress}
-        showThinking={showThinking}
-        onToggleThinking={() => setShowThinking(!showThinking)}
-      />
+      {/* Messages Area - Scrollable */}
+      <div className="flex-1 overflow-hidden">
+        <MessageList
+          messages={messages}
+          isLoading={isLoading}
+          isStreaming={isStreaming}
+          currentStreamingMessageId={currentStreamingMessageId}
+          thinkingSteps={thinkingSteps}
+          progress={progress}
+          showThinking={showThinking}
+          onToggleThinking={() => setShowThinking(!showThinking)}
+        />
+      </div>
 
       {/* Input Area */}
-      <ChatInput
-        onSendMessage={handleSendMessage}
-        isLoading={isLoading}
-        isStreaming={isStreaming}
-      />
+      <div className="flex-shrink-0">
+        <ChatInput
+          onSendMessage={handleSendMessage}
+          onStopGeneration={stopGeneration}
+          isLoading={isLoading}
+          isStreaming={isStreaming}
+        />
+      </div>
     </div>
   );
 }

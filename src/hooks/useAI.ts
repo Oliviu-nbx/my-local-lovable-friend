@@ -13,6 +13,7 @@ export function useAI() {
   const [currentStreamingMessageId, setCurrentStreamingMessageId] = useState<string | null>(null);
   const [thinkingSteps, setThinkingSteps] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   
   const projectManager = useProjectManager();
   const { toast } = useToast();
@@ -37,8 +38,22 @@ export function useAI() {
     }
   }, []);
 
+  const stopGeneration = useCallback(() => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
+    setIsLoading(false);
+    setIsStreaming(false);
+    setCurrentStreamingMessageId(null);
+  }, [abortController]);
+
   const sendMessage = useCallback(async (content: string, projectConfig?: any) => {
     if (!content.trim()) return;
+
+    // Create new abort controller for this request
+    const controller = new AbortController();
+    setAbortController(controller);
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -127,6 +142,7 @@ Project Configuration:
       setIsLoading(false);
       setIsStreaming(false);
       setCurrentStreamingMessageId(null);
+      setAbortController(null);
     }
   }, [messages, simulateThinking, projectManager, toast]);
 
@@ -151,6 +167,7 @@ Project Configuration:
     thinkingSteps,
     progress,
     sendMessage,
+    stopGeneration,
     clearMessages,
     loadMessages: loadMessagesForProject,
     saveMessages: saveMessagesForProject,

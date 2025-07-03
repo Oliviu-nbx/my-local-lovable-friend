@@ -9,12 +9,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Code, Eye, FolderOpen } from 'lucide-react';
 
 export function Workspace() {
   const projectManager = useProjectManager();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeView, setActiveView] = useState<'preview' | 'code'>('preview');
   
   const currentProject = projectManager.getCurrentProject();
   const allProjects = projectManager.getAllProjects();
@@ -64,12 +65,12 @@ export function Workspace() {
 
   return (
     <Layout>
-      <div className="h-full flex flex-col">
+      <div className="h-screen flex flex-col">
         {/* Project Selector Header */}
-        <div className="p-4 border-b border-border bg-card">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold">Workspace</h2>
-            <div className="flex items-center gap-2">
+        <div className="flex-shrink-0 p-4 border-b border-border bg-card">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold">Workspace</h2>
               <div className="w-64">
                 <Select value={projectManager.currentProject || ""} onValueChange={projectManager.setCurrentProject}>
                   <SelectTrigger>
@@ -99,62 +100,81 @@ export function Workspace() {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
+            
+            {/* View Toggle - Lovable Style */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={activeView === 'preview' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveView('preview')}
+                className="gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Preview
+              </Button>
+              <Button
+                variant={activeView === 'code' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveView('code')}
+                className="gap-2"
+              >
+                <Code className="w-4 h-4" />
+                Code
+              </Button>
+            </div>
           </div>
         </div>
         
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          {/* Left Panel - Chat */}
-          <ResizablePanel defaultSize={40} minSize={30}>
-            <ChatInterface key={refreshKey} />
-          </ResizablePanel>
+        <div className="flex-1 flex min-h-0">
+          {/* Left Panel - Chat with Fixed Height */}
+          <div className="w-1/2 border-r border-border flex flex-col">
+            <div className="flex-1 overflow-hidden">
+              <ChatInterface key={refreshKey} />
+            </div>
+          </div>
           
-          <ResizableHandle />
-          
-          {/* Right Panel - Development Environment */}
-          <ResizablePanel defaultSize={60} minSize={40}>
-            <ResizablePanelGroup direction="vertical">
-              {/* Top - Preview */}
-              <ResizablePanel defaultSize={50} minSize={30}>
-                <div className="h-full p-4">
-                  <ProjectPreview key={refreshKey} project={currentProject} />
+          {/* Right Panel - Preview or Code */}
+          <div className="w-1/2 flex flex-col">
+            {activeView === 'preview' ? (
+              <div className="flex-1 p-4">
+                <ProjectPreview key={refreshKey} project={currentProject} />
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col bg-sidebar">
+                {/* Code View Header */}
+                <div className="flex-shrink-0 p-4 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <FolderOpen className="w-4 h-4" />
+                    <span className="text-sm font-medium">Code Editor</span>
+                  </div>
                 </div>
-              </ResizablePanel>
-              
-              <ResizableHandle />
-              
-              {/* Bottom - Files and Editor */}
-              <ResizablePanel defaultSize={50} minSize={30}>
-                <div className="h-full p-4 bg-sidebar">
-                  <Tabs defaultValue="files" className="h-full flex flex-col">
-                    <TabsList className="grid w-full grid-cols-2 bg-sidebar-accent">
-                      <TabsTrigger value="files" className="text-sidebar-foreground">File Explorer</TabsTrigger>
-                      <TabsTrigger value="editor" className="text-sidebar-foreground">Code Editor</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="files" className="flex-1 mt-4">
-                      <FileExplorer
-                        key={refreshKey}
-                        project={currentProject}
-                        onFileSelect={handleFileSelect}
-                        onFileDelete={handleFileDelete}
-                        onCreateDirectory={handleCreateDirectory}
-                        selectedFile={selectedFile}
-                      />
-                    </TabsContent>
-                    
-                    <TabsContent value="editor" className="flex-1 mt-4">
-                      <CodeEditor
-                        key={refreshKey}
-                        file={selectedFileData}
-                        onSave={handleFileSave}
-                      />
-                    </TabsContent>
-                  </Tabs>
+                
+                <div className="flex-1 flex min-h-0">
+                  {/* File Explorer Sidebar */}
+                  <div className="w-1/3 border-r border-border p-4 overflow-auto">
+                    <FileExplorer
+                      key={refreshKey}
+                      project={currentProject}
+                      onFileSelect={handleFileSelect}
+                      onFileDelete={handleFileDelete}
+                      onCreateDirectory={handleCreateDirectory}
+                      selectedFile={selectedFile}
+                    />
+                  </div>
+                  
+                  {/* Code Editor */}
+                  <div className="flex-1 p-4">
+                    <CodeEditor
+                      key={refreshKey}
+                      file={selectedFileData}
+                      onSave={handleFileSave}
+                    />
+                  </div>
                 </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </Layout>
   );
